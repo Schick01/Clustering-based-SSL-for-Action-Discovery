@@ -57,6 +57,7 @@ This file contains the list of available projects, complete details for each pro
 | 29 | [Feature‑based Knowledge Distillation for Monocular Depth Estimation](#project-29) | Knowledge Distillation | Small | KITTI, NYU Depth V2 | G22 |
 | 30 | [Unsupervised Domain Adaptation for Image Recognition under Domain Shift](#project-30) | Domain Adaptation | Small | Intel Scene Classification, Places | G31 |
 | 31 | [Metric Learning for Face Recognition](#project-31) | Metric Learning | Small | MS1MV2 | G35 |
+| 32 | [Knowledge Distillation for Mobile Action Recognition](#project-32) | Knowledge Distillation | Small | HMDB-51 | G39 |
 
 ## Detailed Project Descriptions
 
@@ -898,6 +899,31 @@ Face recognition systems are ubiquitous, but identifying individuals accurately 
 
 ---
 
+<a id='project-32'></a>
+### Track 32: Knowledge Distillation for Mobile Action Recognition
+**Suggested Size**: Small  
+**Reference Module**: Knowledge Distillation  
+
+#### Problem Description
+Action recognition in videos is inherently expensive due to the added temporal dimension, making deployment to mobile applications highly restrictive. This project focuses on aggressive model compression, translating the robust, high-dimensional knowledge learned by a heavy 3D ResNet-50 into an ultra-lightweight MobileNet 3D. The resulting model must maintain respectable temporal reasoning while reducing parameter count by 5–10x.
+
+#### Dataset
+- **HMDB-51** or **UCF-101** (focusing on sports/daily actions).
+- Download and utilize pre-extracted video features if computational restraint is an issue.
+
+#### Minimum Objectives
+1. **Teacher Model**: Evaluate and solidify a pre-trained 3D ResNet-50 to establish the upper bound baseline accuracy.
+2. **Baseline**: Train a 3D MobileNet from scratch using purely hard labels, defining the lower bound capability of the architecture.
+3. **Knowledge Transfer**: Re-train the 3D MobileNet student allowing it to learn from the soft probability distributions (logits) of the teacher.
+4. **Evaluation**: Graph the test accuracies representing Teacher vs. Baseline Student vs. Distilled Student. Report deployment metrics: model size (MB) and sequential inference tracking (ms).
+
+#### Extra Objectives
+- Perform temperature scaling ablations (T = 1, 5, 10, 20) to analyze how smoothing the teacher's logits impacts knowledge transfer.
+- Expand KD to include Attention Transfer across intermediate temporal activation mappings.
+- Provide t-SNE visualizations of the latent space to illustrate the structural differences in how the teacher and student map actions.
+
+---
+
 ## Groups
 
 | Group Name | Members |
@@ -940,3 +966,4 @@ Face recognition systems are ubiquitous, but identifying individuals accurately 
 | G36 | 1 |
 | G37 | 1 |
 | G38 | 1 |
+| G39 | 2 |
