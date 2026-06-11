@@ -381,8 +381,8 @@ While action *recognition* identifies *what* happens in a unified video clip, te
 4. **Evaluation**: Compile comparative matrices demonstrating overall accuracy metrics while qualitatively logging systematic boundary leakage (e.g., predicting an action is concluding five frames late uniformly across all models).
 
 #### Extra Objectives
-- Establish a Soft-NMS (Non-Maximum Suppression) post-processing subroutine mathematically merging overlapping temporal detections.
 - Deploy Mamba-based modules evaluating alternative state-space calculations over recursive attention boundaries to mitigate long-string decay.
+- Implement MSTCN++
 
 ---
 
