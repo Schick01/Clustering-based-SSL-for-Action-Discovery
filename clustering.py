@@ -1,47 +1,47 @@
 import torch
-from sklearn.cluster import KMeans
 import numpy as np
+from sklearn.cluster import KMeans
 from collections import Counter
 
 if __name__ == '__main__':
 
-    print("1. Caricamento dati")
+    print("1. Loading data...")
     features_tensor = torch.load("data/features.pt")
     labels = torch.load("data/labels.pt")
 
-    print("2. Conversione del tensore con numpy")
+    print("2. Converting tensor to NumPy...")
     X = features_tensor.numpy()
 
-    print("3. Conteggio classi")
+    print("3. Analyzing classes...")
     unique_classes = set(labels)
-    k_cluster = len(unique_classes)
+    num_clusters = len(unique_classes)
 
-    print("4. Applichiamo il K-means")
-    kmeans = KMeans(n_clusters=k_cluster, random_state=42).fit(X)
-    kmeans_labels = kmeans.labels_
+    print("4. Applying K-Means clustering...")
+    kmeans = KMeans(n_clusters=num_clusters, random_state=42).fit(X)
+    cluster_labels = kmeans.labels_
 
-    labels_np = np.array(labels)
-    video_corretti = 0
-    video_totali = len(labels_np)
+    # Valutazione
+    true_labels = np.array(labels)
+    correct_samples = 0
+    total_samples = len(true_labels)
 
-    for i in range(k_cluster):
-        #Prende gli elementi (indici) che appartengono allo stesso cluster
-        elementi_che_appartengono_allo_stesso_cluster = np.where(kmeans_labels==i)[0]
+    for i in range(num_clusters):
+        # 1. Trova gli indici dei campioni assegnati a questo cluster
+        cluster_indices = np.where(cluster_labels == i)[0]
         
-        #Prende le etichette reali, ovvero la cartella a cui appartengono
-        etichette_reali_degli_elementi_nel_cluster = labels_np[elementi_che_appartengono_allo_stesso_cluster]
+        # 2. Estrai le etichette reali per quegli indici
+        true_labels_in_cluster = true_labels[cluster_indices]
         
-        #Conta quante volte appare ogni etichetta reale all'interno del cluster
-        conteggio_etichette_reali = Counter(etichette_reali_degli_elementi_nel_cluster)
+        # 3. Conta le frequenze delle etichette
+        label_counts = Counter(true_labels_in_cluster)
 
-        #Prende l'etichetta reale più frequente all'interno del cluster
-        etichetta_reale_piu_frequente = conteggio_etichette_reali.most_common(1)[0][0]
+        # 4. Identifica la classe maggioritaria
+        most_common_label = label_counts.most_common(1)[0][0]
 
-        #Contiamo quante volte appare l'etichetta reale più frequente all'interno del cluster
-        video_corretti += conteggio_etichette_reali[etichetta_reale_piu_frequente]
+        # 5. Aggiorna il contatore delle previsioni corrette
+        correct_samples += label_counts[most_common_label]
 
-        print(f"Cluster {i}: Etichetta reale più frequente: {etichetta_reale_piu_frequente}, Conteggio: {conteggio_etichette_reali[etichetta_reale_piu_frequente]}")
+        print(f"Cluster {i} | Assigned to: '{most_common_label}' | Correct matches: {label_counts[most_common_label]}")
 
-
-accuracy = video_corretti / video_totali * 100
-print(f"Accuratezza del clustering: {accuracy:.2f}%")
+    accuracy = (correct_samples / total_samples) * 100
+    print(f"Clustering Accuracy: {accuracy:.2f}%")
