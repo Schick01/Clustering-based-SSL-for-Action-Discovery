@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 import torch
 import cv2
 import numpy as np
+from transformers import VideoMAEImageProcessor
 
 def get_dataset(path = "data"):
     """
@@ -24,9 +25,10 @@ def get_dataset(path = "data"):
 
 class VideoKineticsDataset(Dataset):
 
-    def __init__(self, path="data", num_frames=16):
+    def __init__(self, path="data", num_frames=16, transform=None):
         self.video_dict = list(get_dataset(path).items())
         self.num_frames = num_frames
+        self.transform = transform
 
     def __len__(self):
         return len(self.video_dict)
@@ -50,14 +52,17 @@ class VideoKineticsDataset(Dataset):
             if ret:
                 frame = cv2.resize(frame, (224, 224))
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
                 frames.append(frame)  
             else:
                 break
 
         capture.release()
-        # Passiamo da (Tempo, Altezza, Larghezza, Canali) a (Canali, Tempo, Altezza, Larghezza)
-        video_array = np.array(frames) # Questo passaggio si fa perche perche torch impiega meno tempo a convertire un array numpy in un tensore
-        video_tensor = torch.from_numpy(video_array).permute(3, 0, 1, 2).float() / 255.0
-        return video_tensor, action
+        if self.transform:
+            video_tensor = self.transform(frames)
+            return video_tensor, action
+        else:
+            # Passiamo da (Tempo, Altezza, Larghezza, Canali) a (Canali, Tempo, Altezza, Larghezza)
+            video_array = np.array(frames) # Questo passaggio si fa perche perche torch impiega meno tempo a convertire un array numpy in un tensore
+            video_tensor = torch.from_numpy(video_array).permute(3, 0, 1, 2).float() / 255.0
+            return video_tensor, action
         
