@@ -7,7 +7,7 @@ class ResNetFeatureExtractor(nn.Module):
     def __init__(self):
         super().__init__()
         self.backbone = torchvision.models.resnet18(weights = 'DEFAULT')
-        self.backbone.fc = torch.nn.Identity()
+        self.backbone.fc = nn.Identity()    
 
     def forward(self, x):
         # x arriva con forma: (Batch, Canali, Tempo, Altezza, Larghezza)
