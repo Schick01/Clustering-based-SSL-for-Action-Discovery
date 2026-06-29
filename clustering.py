@@ -46,4 +46,5 @@ def clustering(path_to_features, path_to_labels):
     accuracy = (correct_samples / total_samples) * 100
     print(f"Clustering Accuracy: {accuracy:.2f}%")
 
-def iterative_clustering(path_to_features, path_to_labels, num_iterations=5):
+
+#def iterative_clustering(path_to_features, path_to_labels, num_iterations=5):

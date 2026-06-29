@@ -1,5 +1,6 @@
 import os
 from tqdm import tqdm
+from clustering import clustering
 import torch
 from torch.utils.data import DataLoader
 from src.datasets.video_dataset import VideoKineticsDataset
@@ -93,3 +94,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    clustering(path_to_features="data/features_resnet18.pt", path_to_labels="data/labels_resnet18.pt")  
+    clustering(path_to_features="data/features_videomae.pt", path_to_labels="data/labels_videomae.pt")
