@@ -3,11 +3,11 @@ import numpy as np
 from sklearn.cluster import KMeans
 from collections import Counter
 
-if __name__ == '__main__':
+def clustering(path_to_features, path_to_labels):
 
     print("1. Loading data...")
-    features_tensor = torch.load("data/features.pt")
-    labels = torch.load("data/labels.pt")
+    features_tensor = torch.load(path_to_features)
+    labels = torch.load(path_to_labels)
 
     print("2. Converting tensor to NumPy...")
     X = features_tensor.numpy()
@@ -45,3 +45,5 @@ if __name__ == '__main__':
 
     accuracy = (correct_samples / total_samples) * 100
     print(f"Clustering Accuracy: {accuracy:.2f}%")
+
+def iterative_clustering(path_to_features, path_to_labels, num_iterations=5):

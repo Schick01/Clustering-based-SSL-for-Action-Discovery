@@ -11,5 +11,5 @@ class VideoMAEFeatureExtractor(nn.Module):
     def forward(self, x):
         outputs = self.model(pixel_values=x)
         features = outputs.last_hidden_state
-        features = features.mean(dim=1)  # Media lungo la dimensione temporale
+        features = features.mean(dim=1)
         return features

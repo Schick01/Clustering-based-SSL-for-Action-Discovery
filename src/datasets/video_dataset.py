@@ -3,7 +3,6 @@ from torch.utils.data import Dataset
 import torch
 import cv2
 import numpy as np
-from transformers import VideoMAEImageProcessor
 
 def get_dataset(path = "data"):
     """
@@ -11,7 +10,7 @@ def get_dataset(path = "data"):
     """
     data_path = path
     
-    dict = {}
+    video_dict = {}
     
     for dir in os.listdir(data_path):
         action = dir
@@ -19,9 +18,9 @@ def get_dataset(path = "data"):
         if os.path.isdir(action_dir):
             for video in os.listdir(action_dir):
                 if video.endswith("mp4"):
-                    dict[os.path.join(action_dir,video)] = action
+                    video_dict[os.path.join(action_dir,video)] = action
             
-    return dict
+    return video_dict
 
 class VideoKineticsDataset(Dataset):
 
@@ -56,7 +55,7 @@ class VideoKineticsDataset(Dataset):
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frames.append(frame)  
             else:
-                break
+                frames.append(np.zeros((224, 224, 3), dtype=np.uint8))  # frame nero
         
         capture.release()
 

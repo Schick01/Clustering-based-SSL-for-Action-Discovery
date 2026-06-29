@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from src.datasets.video_dataset import VideoKineticsDataset
 from src.models.resnet_baseline import ResNetFeatureExtractor
 from src.models.videomae_extractor import VideoMAEFeatureExtractor
-from transformers import VideoMAEImageProcessor, VideoMAEModel
+from transformers import VideoMAEImageProcessor
 
 def main():
     print("Inizio estrazione feature dai video tramite il modello ResNet18 pre-addestrato su ImageNet...")
