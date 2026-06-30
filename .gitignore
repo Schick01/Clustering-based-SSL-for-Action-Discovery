@@ -14,3 +14,7 @@ experiments/checkpoints/
 *.log
 
 .DS_Store
+
+# Claude Code local config (non fa parte del progetto)
+CLAUDE.md
+.claude/
