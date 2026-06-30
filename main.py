@@ -1,6 +1,6 @@
 import os
 from tqdm import tqdm
-from clustering import clustering
+from src.training.clustering import clustering
 import torch
 from torch.utils.data import DataLoader
 from src.datasets.video_dataset import VideoKineticsDataset
