@@ -20,5 +20,8 @@ dependencies:
       - tensorboard
       - tqdm
       - opencv-python
-      - transformers
+      # Pin alla serie 4.x: dalla 5.x il caricamento di VideoMAE scarta i
+      # bias di attention pre-addestrati (q_bias/v_bias) del checkpoint,
+      # reinizializzandoli a zero (verifica: tests/verify_videomae_weights.py)
+      - transformers==4.57.1
       # Add other pip-only packages here
