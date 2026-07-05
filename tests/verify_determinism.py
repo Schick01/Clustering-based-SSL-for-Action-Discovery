@@ -15,9 +15,14 @@ e va corretta prima di qualsiasi esperimento. Esce con codice diverso
 da zero in caso di differenze.
 
 Uso (dalla radice del repository):
-    python -m tests.verify_determinism
+    python -m tests.verify_determinism [--backbone resnet|videomae] [--device cpu|cuda]
+
+Il determinismo va riverificato su ogni combinazione dispositivo/backbone
+usata per gli esperimenti: kernel CUDA e implementazioni di attention
+possono introdurre sorgenti di non-determinismo assenti su CPU.
 """
 
+import argparse
 import json
 import os
 import shutil
@@ -63,7 +68,7 @@ def build_mini_dataset(source_root: str, target_root: str) -> int:
     return num_copied
 
 
-def write_check_config(path: str, data_path: str) -> None:
+def write_check_config(path: str, data_path: str, backbone: str, device: str) -> None:
     """
     Scrive la configurazione del mini-run di verifica.
 
@@ -73,11 +78,14 @@ def write_check_config(path: str, data_path: str) -> None:
     Args:
         path: percorso del file YAML da scrivere.
         data_path: cartella del mini-dataset.
+        backbone: backbone da verificare ("resnet" o "videomae").
+        device: dispositivo di calcolo ("cpu" o "cuda").
     """
     config_text = (
         "run_name: placeholder\n"
-        "backbone: resnet\n"
+        f"backbone: {backbone}\n"
         f"data_path: {data_path}\n"
+        "num_blocks: 2\n"
         "num_clusters: 10\n"
         "max_iterations: 2\n"
         "stability_threshold: 1.1\n"
@@ -88,7 +96,7 @@ def write_check_config(path: str, data_path: str) -> None:
         "lr_head: 1.0e-3\n"
         "weight_decay: 1.0e-4\n"
         "seed: 42\n"
-        "device: cpu\n"
+        f"device: {device}\n"
     )
     with open(path, "w", encoding="utf-8") as f:
         f.write(config_text)
@@ -150,14 +158,28 @@ def cleanup_runs() -> None:
 
 def main() -> int:
     """Esegue i due mini-run e confronta gli artefatti."""
+    parser = argparse.ArgumentParser(description="Verifica del determinismo della pipeline iterativa")
+    parser.add_argument(
+        "--backbone",
+        default="resnet",
+        choices=["resnet", "videomae"],
+        help="backbone da verificare",
+    )
+    parser.add_argument(
+        "--device",
+        default="cpu",
+        help="dispositivo di calcolo (cpu o cuda)",
+    )
+    args = parser.parse_args()
+
     temp_dir = tempfile.mkdtemp(prefix="determinism_check_")
     mini_data = os.path.join(temp_dir, "mini_data")
     config_path = os.path.join(temp_dir, "check_config.yaml")
 
     try:
         num_videos = build_mini_dataset("data", mini_data)
-        print(f"Mini-dataset: {num_videos} video")
-        write_check_config(config_path, mini_data)
+        print(f"Mini-dataset: {num_videos} video | backbone: {args.backbone} | device: {args.device}")
+        write_check_config(config_path, mini_data, args.backbone, args.device)
 
         for run_name in RUN_NAMES:
             print(f"Esecuzione mini-run '{run_name}'...")
