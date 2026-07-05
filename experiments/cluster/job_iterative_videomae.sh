@@ -13,16 +13,22 @@
 #SBATCH --output=logs/job-%j.log
 
 # Run completo del clustering iterativo su VideoMAE (config ufficiale,
-# device CUDA). HF_HUB_OFFLINE forza l'uso della cache locale dei
-# modelli (i nodi hanno DNS inaffidabile dentro il container).
+# device CUDA). Primo argomento opzionale: nome del run (default: quello
+# della config), utile per distinguere run su versioni diverse del
+# dataset senza sovrascrivere gli artefatti. HF_HUB_OFFLINE forza l'uso
+# della cache locale dei modelli (i nodi hanno DNS inaffidabile dentro
+# il container).
+
+RUN_NAME_ARG=""
+[ -n "$1" ] && RUN_NAME_ARG="--run-name $1"
 
 mkdir -p logs
 export HF_HUB_OFFLINE=1
 
-echo "=== RUN VIDEOMAE: $(date) su $(hostname) ==="
+echo "=== RUN VIDEOMAE ($1): $(date) su $(hostname) ==="
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 apptainer run --nv /shared/sifs/latest.sif python -m src.training.run_iterative \
-    --config experiments/configs/iterative_videomae.yaml --device cuda
+    --config experiments/configs/iterative_videomae.yaml --device cuda $RUN_NAME_ARG
 
 [ $? -eq 0 ] && echo "=== RUN COMPLETATO: $(date) ===" || { echo "=== RUN FALLITO: $(date) ==="; exit 1; }
