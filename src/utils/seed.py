@@ -6,6 +6,7 @@ L'obiettivo è rendere la pipeline interamente riproducibile: chiamare
 esecuzioni dello stesso codice producano risultati identici.
 """
 
+import os
 import random
 
 import numpy as np
@@ -17,12 +18,20 @@ def set_seed(seed: int = 42) -> None:
     Inizializza con lo stesso seed tutte le sorgenti di casualità usate
     dalla pipeline: ``random``, ``numpy`` e ``torch`` (CPU e CUDA).
 
-    Forza inoltre cuDNN in modalità deterministica, al costo di una
-    possibile riduzione di velocità sulle convoluzioni.
+    Impone inoltre l'esecuzione completamente deterministica, anche su
+    GPU: cuDNN deterministico, riduzioni cuBLAS deterministiche e
+    percorso "math" per scaled_dot_product_attention (i kernel fused
+    flash/memory-efficient hanno backward non deterministico). Qualsiasi
+    operazione priva di implementazione deterministica solleva un errore
+    invece di produrre risultati variabili tra run.
 
     Args:
         seed: valore del seed da applicare a tutte le librerie.
     """
+    # Richiesto da cuBLAS per riduzioni deterministiche: va impostato
+    # prima della prima operazione su GPU
+    os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -33,6 +42,17 @@ def set_seed(seed: int = 42) -> None:
     # deterministica e si disabilita il benchmark.
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+    # Errore esplicito su qualunque operazione non deterministica,
+    # invece di divergenze silenziose tra run
+    torch.use_deterministic_algorithms(True)
+
+    if torch.cuda.is_available():
+        # I kernel fused di scaled_dot_product_attention hanno backward
+        # non deterministico su CUDA: si forza il percorso "math"
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+        torch.backends.cuda.enable_math_sdp(True)
 
 
 def make_generator(seed: int = 42) -> torch.Generator:
