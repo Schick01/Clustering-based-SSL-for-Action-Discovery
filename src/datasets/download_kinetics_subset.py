@@ -41,12 +41,15 @@ def list_target_classes(data_root: str) -> list[str]:
         data_root: cartella radice del dataset.
 
     Returns:
-        Nomi delle classi, esclusa la cache dei frame.
+        Nomi delle classi, escluse la cache dei frame e le cartelle di
+        lavoro (prefisso "_").
     """
     return sorted(
         entry
         for entry in os.listdir(data_root)
-        if os.path.isdir(os.path.join(data_root, entry)) and entry != "frame_cache"
+        if os.path.isdir(os.path.join(data_root, entry))
+        and entry != "frame_cache"
+        and not entry.startswith("_")
     )
 
 
