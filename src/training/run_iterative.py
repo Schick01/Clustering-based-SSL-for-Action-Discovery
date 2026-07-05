@@ -31,6 +31,11 @@ def main() -> None:
         default=None,
         help="nome del run (sovrascrive run_name della configurazione)",
     )
+    parser.add_argument(
+        "--device",
+        default=None,
+        help="dispositivo di calcolo, es. 'cuda' (sovrascrive device della configurazione)",
+    )
     args = parser.parse_args()
 
     with open(args.config, encoding="utf-8") as f:
@@ -38,6 +43,8 @@ def main() -> None:
 
     if args.run_name is not None:
         config["run_name"] = args.run_name
+    if args.device is not None:
+        config["device"] = args.device
 
     # Seeding centralizzato PRIMA di qualunque operazione con casualità
     # (inizializzazione dei modelli, shuffle, augmentation, K-Means)
