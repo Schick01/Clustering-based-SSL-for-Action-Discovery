@@ -1,0 +1,3 @@
+# Gli script shell devono mantenere line ending LF anche su Windows:
+# con CRLF bash sul cluster fallisce ("/bin/bash^M: bad interpreter")
+*.sh text eol=lf
