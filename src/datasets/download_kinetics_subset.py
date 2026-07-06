@@ -113,6 +113,25 @@ def list_part_urls(work_dir: str, split: str) -> list[str]:
         return [line.strip() for line in f if line.strip()]
 
 
+def count_videos_per_class(data_root: str, target_classes: list[str]) -> dict[str, int]:
+    """
+    Conta i video attualmente presenti per ciascuna classe.
+
+    Args:
+        data_root: cartella radice del dataset.
+        target_classes: classi da contare.
+
+    Returns:
+        Dizionario classe -> numero di video.
+    """
+    return {
+        class_name: len(
+            [v for v in os.listdir(os.path.join(data_root, class_name)) if v.endswith(".mp4")]
+        )
+        for class_name in target_classes
+    }
+
+
 def harvest_part(
     part_url: str,
     work_dir: str,
@@ -180,6 +199,12 @@ def main() -> None:
     parser.add_argument("--splits", nargs="+", default=["val", "test"], choices=["train", "val", "test"])
     parser.add_argument("--data-root", default="data", help="cartella radice del dataset")
     parser.add_argument("--max-parts", type=int, default=None, help="limite di parti per split (per collaudo)")
+    parser.add_argument(
+        "--target-per-class",
+        type=int,
+        default=None,
+        help="ferma l'harvesting quando ogni classe raggiunge questo numero di video",
+    )
     args = parser.parse_args()
 
     work_dir = os.path.join(args.data_root, "_kinetics_tmp")
@@ -202,6 +227,13 @@ def main() -> None:
         print(f"\nSplit '{split}': {len(id_to_class)} video candidati, {len(part_urls)} parti da processare")
 
         for index, part_url in enumerate(part_urls):
+            # Stop anticipato: tutte le classi hanno raggiunto il target
+            if args.target_per_class is not None:
+                counts = count_videos_per_class(args.data_root, target_classes)
+                if min(counts.values()) >= args.target_per_class:
+                    print(f"Target di {args.target_per_class} video/classe raggiunto: stop")
+                    break
+
             part_name = f"{split}/{os.path.basename(part_url)}"
             if part_name in state["completed_parts"]:
                 continue
