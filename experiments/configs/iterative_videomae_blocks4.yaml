@@ -1,0 +1,22 @@
+# Ablation capacità su VideoMAE (dataset esteso): 4 blocchi encoder
+# sbloccati invece di 2, a parità di tutto il resto. Le feature MAE
+# potrebbero richiedere una riorganizzazione più profonda di quella
+# possibile toccando solo gli ultimi 2 blocchi.
+run_name: iterative_videomae_blocks4_n1865
+backbone: videomae
+data_path: data
+num_blocks: 4             # ablation: 2 nella config standard
+
+num_clusters: 10
+max_iterations: 15
+stability_threshold: 0.95
+min_cluster_size: 5
+
+epochs: 1
+batch_size: 4
+lr_backbone: 1.0e-5
+lr_head: 1.0e-3
+weight_decay: 1.0e-4
+
+seed: 42
+device: cpu
