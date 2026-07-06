@@ -12,23 +12,23 @@
 #SBATCH --mail-user=lorenzocomis31@gmail.com
 #SBATCH --output=logs/job-%j.log
 
-# Run completo del clustering iterativo su VideoMAE (config ufficiale,
-# device CUDA). Primo argomento opzionale: nome del run (default: quello
-# della config), utile per distinguere run su versioni diverse del
-# dataset senza sovrascrivere gli artefatti. HF_HUB_OFFLINE forza l'uso
-# della cache locale dei modelli (i nodi hanno DNS inaffidabile dentro
-# il container).
+# Run del clustering iterativo su VideoMAE, device CUDA.
+# Argomenti opzionali: $1 = percorso della config (default: quella
+# ufficiale), $2 = nome del run (default: quello della config).
+# HF_HUB_OFFLINE forza l'uso della cache locale dei modelli (i nodi
+# hanno DNS inaffidabile dentro il container).
 
+CONFIG=${1:-experiments/configs/iterative_videomae.yaml}
 RUN_NAME_ARG=""
-[ -n "$1" ] && RUN_NAME_ARG="--run-name $1"
+[ -n "$2" ] && RUN_NAME_ARG="--run-name $2"
 
 mkdir -p logs
 export HF_HUB_OFFLINE=1
 
-echo "=== RUN VIDEOMAE ($1): $(date) su $(hostname) ==="
+echo "=== RUN VIDEOMAE ($CONFIG $2): $(date) su $(hostname) ==="
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 apptainer run --nv /shared/sifs/latest.sif python -m src.training.run_iterative \
-    --config experiments/configs/iterative_videomae.yaml --device cuda $RUN_NAME_ARG
+    --config "$CONFIG" --device cuda $RUN_NAME_ARG
 
 [ $? -eq 0 ] && echo "=== RUN COMPLETATO: $(date) ===" || { echo "=== RUN FALLITO: $(date) ==="; exit 1; }
