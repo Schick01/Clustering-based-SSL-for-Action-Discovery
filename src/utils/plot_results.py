@@ -105,7 +105,7 @@ def fig_dataset_growth() -> None:
     ax.invert_yaxis()
     ax.set_xlabel("video per classe", fontsize=12, color=INK2)
     ax.set_title(
-        "Crescita del dataset — 10 classi di Kinetics-400, tre fasi di harvesting",
+        "Crescita del dataset — 10 classi di Kinetics-400",
         fontsize=15, color=INK, fontweight="bold", pad=14,
     )
     # Legenda sotto il grafico: dentro l'area dati collide con le barre
@@ -156,7 +156,7 @@ def fig_loop_schema() -> None:
 
     ax.text(1.85, 5.35, "Iterazione 0 = baseline (nessun fine-tuning)", fontsize=10.5, color=INK2, ha="left")
     ax.set_title(
-        "Clustering iterativo in stile DeepCluster — anatomia del loop",
+        "Clustering iterativo in stile DeepCluster",
         fontsize=15, color=INK, fontweight="bold", pad=12,
     )
     save(fig, "iterative_loop_schema.png")
@@ -187,7 +187,7 @@ def fig_resnet_regimes() -> None:
                  marker="o", markersize=6, linewidth=2, color=color, label=label)
     ax1.set_xlabel("iterazione", fontsize=12, color=INK2)
     ax1.set_ylabel("purity (%)", fontsize=12, color=INK2)
-    ax1.set_title("Qualità dei cluster", fontsize=13, color=INK)
+    ax1.set_title("Qualità dei cluster", fontsize=13, color=INK, pad=14)
     ax1.legend(frameon=False, fontsize=10.5, labelcolor=INK2)
 
     ax2 = fig.add_subplot(122)
@@ -198,7 +198,7 @@ def fig_resnet_regimes() -> None:
         ax2.plot(iters, losses, marker="o", markersize=6, linewidth=2, color=color, label=label)
     ax2.set_xlabel("iterazione", fontsize=12, color=INK2)
     ax2.set_ylabel("loss media (cross-entropy pesata)", fontsize=12, color=INK2)
-    ax2.set_title("Il termometro del regime: la loss", fontsize=13, color=INK)
+    ax2.set_title("Variazione Loss", fontsize=13, color=INK, pad=14)
     ax2.legend(frameon=False, fontsize=10.5, labelcolor=INK2)
 
     fig.tight_layout(rect=(0, 0, 1, 0.93))
