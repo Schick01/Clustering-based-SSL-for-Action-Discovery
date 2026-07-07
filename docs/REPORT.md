@@ -59,7 +59,7 @@ Il metodo segue lo schema DeepCluster: le assegnazioni del K-Means corrente dive
 
 ### 4.3 Infrastruttura di calcolo
 
-Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI**, adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet e un job per utente alla volta.
+Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI**, adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet e un job per utente alla volta. Il determinismo bit-esatto della pipeline (due esecuzioni identiche producono storici, assegnazioni e pesi finali identici) è garantito da script di verifica dedicati in `tests/`, rieseguiti sul nuovo hardware prima degli esperimenti.
 
 **Tabella 2: Tempi misurati, portatile vs cluster**
 
@@ -87,7 +87,7 @@ Gli esperimenti sono presentati nell'ordine in cui sono avvenuti: ogni passo è 
 | VideoMAE | grezze | 0.3367 | | 0.2642 | 0.1176 |
 | VideoMAE | + L2-norm | 0.3618 | +2,5 | 0.2719 | 0.1274 |
 
-Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando uno spazio già semanticamente strutturato; su VideoMAE, dove la struttura di partenza manca, l'effetto c'è ma è tre volte più piccolo (+2,5). Secondo: tra le due configurazioni con L2-norm, quelle da cui parte il metodo iterativo, il divario tra i backbone è di **~23 punti** (0.5905 contro 0.3618), e non è un difetto di implementazione: il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3 della consegna.
+Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando uno spazio già semanticamente strutturato; su VideoMAE, dove la struttura di partenza manca, l'effetto c'è ma è tre volte più piccolo (+2,5). Secondo: tra le due configurazioni con L2-norm il divario tra i backbone è di **~23 punti** (0.5905 contro 0.3618), e non è un difetto di implementazione: il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3 della consegna.
 
 ### 5.2 ResNet iterativo: due approcci diversi
 
@@ -111,7 +111,7 @@ Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esper
 
 *Come leggere il grafico: un pannello per metrica; asse x = iterazione del loop, asse y = qualità dei cluster; una linea per taglia di dataset. Conta la forma di ogni linea, non l'altezza: se sale, il loop sta migliorando i cluster su quel dataset. Le linee finiscono a iterazioni diverse perché il loop si ferma da solo quando converge.*
 
-**Tabella 4: VideoMAE alle tre scale (K=10, 2 blocchi; Δ = finale − iterazione 0)**
+**Tabella 4: VideoMAE alle tre scale (K=10, 2 blocchi; Δ = finale − iterazione 0).** *Nota: le iterazioni 0 sono calcolate sul dispositivo di ciascun run (GPU per VideoMAE): a parità di seed l'aritmetica diversa sposta il K-Means di ~2 punti rispetto ai valori CPU della Tabella 3 (per questo 0.342 e non 0.362 a 398 video), coerentemente con la sensibilità dichiarata nei limiti; ogni confronto resta interno al singolo run. Per ResNet, eseguita anche in locale, i valori coincidono.*
 
 | Scala | Iter. 0 (P/NMI/ARI) | Finale (P/NMI/ARI) | Δ (punti) | Stop |
 | :--- | :---: | :---: | :---: | :--- |
@@ -137,7 +137,7 @@ Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esper
 
 Il primo risultato arriva a **1.865 video**: il loop che a 398 girava a vuoto ora funziona, migliora tutte le metriche (Δ +3,3/+2,6/+3,4; l'ARI, la più severa, del 30% relativo) e per la prima volta **converge autonomamente** all'iterazione 8, segno che ha trovato una partizione stabile.
 
-Il terzo punto ha richiesto un passaggio in più, diventato un risultato a sé. A **5.802 video** con le stesse impostazioni, la dinamica del loop è degenerata su entrambi i backbone: ResNet è peggiorato nelle metriche (Δ purity −1,0), VideoMAE ha perso la convergenza (tetto a 15 iterazioni) pur mantenendo guadagni positivi, e per entrambi la loss era di nuovo in zona memorizzazione. Il motivo è il fenomeno del paragrafo 5.2 sotto altra forma: "1 epoca" su un dataset 3 volte più grande significa il triplo di aggiornamenti dei pesi per iterazione, quindi l'addestramento era tornato troppo intenso senza che avessimo cambiato nulla. **L'intensità dell'addestramento va misurata in numero di update, non di epoche.** Riducendo il learning rate del backbone dello stesso fattore di crescita del dataset (÷3), la convergenza è tornata su entrambi i backbone; per VideoMAE al prezzo di guadagni finali un po' più bassi del run non calibrato: la calibrazione ha comprato la stabilità della soluzione, non Δ più alti (i run non calibrati restano nel registro come controprova).
+Il terzo punto ha richiesto un passaggio in più, diventato un risultato a sé. A **5.802 video** con le stesse impostazioni, la dinamica del loop è degenerata su entrambi i backbone: ResNet è peggiorato nelle metriche (Δ purity −1,0), VideoMAE ha perso la convergenza (tetto a 15 iterazioni) pur mantenendo guadagni positivi. Il motivo è il fenomeno del paragrafo 5.2 sotto altra forma: "1 epoca" su un dataset 3 volte più grande significa il triplo di aggiornamenti dei pesi per iterazione, quindi l'addestramento era tornato troppo intenso senza che avessimo cambiato nulla. **L'intensità dell'addestramento va misurata in numero di update, non di epoche.** Riducendo il learning rate del backbone dello stesso fattore di crescita del dataset (÷3), la convergenza è tornata su entrambi i backbone; per VideoMAE al prezzo di guadagni finali un po' più bassi del run non calibrato: la calibrazione ha comprato la stabilità della soluzione, non Δ più alti (i run non calibrati restano nel registro come controprova).
 
 Con l'addestramento sistemato, il verdetto è pulito: **il beneficio del loop su VideoMAE ha il suo massimo attorno a ~2.000 video e poi satura** (+0,8 di purity a 5.802 contro +3,3 a 1.865). Più dati accendono il metodo, ma oltre una certa soglia non lo spingono più su.
 
