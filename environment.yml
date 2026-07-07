@@ -6,16 +6,19 @@ channels:
 dependencies:
   - python=3.10
   - pip
-  - pytorch
-  - torchvision
+  # Versioni pinnate: i numeri del report sono riproducibili a parità di
+  # versioni (il default n_init di scikit-learn e l'aritmetica di torch
+  # influenzano i risultati del K-Means a parità di seed)
+  - pytorch=2.5.1
+  - torchvision=0.20.1
   - torchaudio
   - pytorch-cuda=11.8 # Modificare a seconda del target
   # Add other conda packages here
   - pip:
-      - numpy
+      - numpy==2.2.6
       - pandas
       - matplotlib
-      - scikit-learn
+      - scikit-learn==1.7.2
       - pyyaml
       - tensorboard
       - tqdm
