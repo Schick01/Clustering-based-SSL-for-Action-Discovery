@@ -67,13 +67,6 @@ Optional flags: `--device cuda` (default is the `device` set in the config) and 
 | `iterative_videomae_k50.yaml` | Ablation: over-clustering (K=50) |
 | `iterative_videomae_blocks4.yaml` | Ablation: more capacity (4 unlocked blocks) |
 
-**SLURM cluster execution** (used for all VideoMAE experiments; scripts for the DMI GPU cluster):
-
-```bash
-sbatch experiments/cluster/job_iterative_videomae.sh [config] [run-name]
-sbatch experiments/cluster/job_iterative_resnet_gentle.sh [config] [run-name]
-```
-
 ### 3. Evaluation
 
 Evaluation is built into every run: purity, NMI and ARI are computed at each iteration (ground-truth labels are used only at this stage) and stored, together with cluster assignments and the config used, in `experiments/logs/<run-name>/history.json`. The baseline in `main.py` prints the same three metrics. All report figures are regenerated from the run histories with:
