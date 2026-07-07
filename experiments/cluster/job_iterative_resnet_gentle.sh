@@ -2,10 +2,12 @@
 #SBATCH --job-name=iterclust-resnet
 #SBATCH --account=dl-course-q2
 #SBATCH --partition=dl-course-q2
-#SBATCH --qos=gpu-medium
-#SBATCH --mem=8G
-#SBATCH --cpus-per-task=2
-#SBATCH --gres=gpu:1 --gres=shard:5632
+# gpu-large: con il dataset esteso la sola lettura della cache frame
+# (~14 GB) satura il limite di RAM del profilo gpu-medium
+#SBATCH --qos=gpu-large
+#SBATCH --mem=16G
+#SBATCH --cpus-per-task=4
+#SBATCH --gres=gpu:1 --gres=shard:11264
 #SBATCH --nodelist=gnode10
 #SBATCH --time=03:00:00
 #SBATCH --mail-type=END,FAIL
