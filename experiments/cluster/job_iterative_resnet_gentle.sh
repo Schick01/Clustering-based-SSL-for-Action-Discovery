@@ -14,20 +14,20 @@
 #SBATCH --mail-user=lorenzocomis31@gmail.com
 #SBATCH --output=logs/job-%j.log
 
-# Run del clustering iterativo su ResNet18 in regime gentile (config
-# dell'ablation, device CUDA). Primo argomento opzionale: nome del run
-# (default: quello della config), utile per distinguere run su versioni
-# diverse del dataset senza sovrascrivere gli artefatti.
+# Run del clustering iterativo su ResNet18, device CUDA.
+# Argomenti opzionali: $1 = percorso della config (default: regime
+# gentile), $2 = nome del run (default: quello della config).
 
+CONFIG=${1:-experiments/configs/iterative_resnet_gentle.yaml}
 RUN_NAME_ARG=""
-[ -n "$1" ] && RUN_NAME_ARG="--run-name $1"
+[ -n "$2" ] && RUN_NAME_ARG="--run-name $2"
 
 mkdir -p logs
 export HF_HUB_OFFLINE=1
 
-echo "=== RUN RESNET GENTILE ($1): $(date) su $(hostname) ==="
+echo "=== RUN RESNET ($CONFIG $2): $(date) su $(hostname) ==="
 
 apptainer run --nv /shared/sifs/latest.sif python -m src.training.run_iterative \
-    --config experiments/configs/iterative_resnet_gentle.yaml --device cuda $RUN_NAME_ARG
+    --config "$CONFIG" --device cuda $RUN_NAME_ARG
 
 [ $? -eq 0 ] && echo "=== RUN COMPLETATO: $(date) ===" || { echo "=== RUN FALLITO: $(date) ==="; exit 1; }
