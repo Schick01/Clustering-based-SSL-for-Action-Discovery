@@ -6,7 +6,12 @@ __pycache__/
 *.pyc
 
 data/
-experiments/logs/
+# Dei run si committano solo history.json e config.yaml (fonte di tabelle
+# e figure del report, pochi KB): il resto degli artefatti resta locale
+experiments/logs/**
+!experiments/logs/*/
+!experiments/logs/*/history.json
+!experiments/logs/*/config.yaml
 experiments/checkpoints/
 
 .ipynb_checkpoints/

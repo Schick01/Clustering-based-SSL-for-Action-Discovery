@@ -1,0 +1,19 @@
+# Clustering iterativo su VideoMAE (fine-tuning degli ultimi 2 blocchi encoder)
+run_name: iterative_videomae
+backbone: videomae
+data_path: data
+num_blocks: 2             # blocchi transformer finali da sbloccare
+
+num_clusters: 10          # K fissato al numero di classi del sottoinsieme (assunzione dichiarata)
+max_iterations: 15        # tetto esteso: lo stop deve poter scattare per convergenza, non per troncamento
+stability_threshold: 0.95 # NMI tra assegnazioni consecutive oltre cui fermarsi
+min_cluster_size: 5       # sotto questa dimensione un cluster genera un warning
+
+epochs: 1                 # regime "gentile": passi piccoli raffinano i cluster invece di memorizzarli
+batch_size: 4
+lr_backbone: 1.0e-5       # più basso della ResNet: backbone piu grande e piu sensibile
+lr_head: 1.0e-3
+weight_decay: 1.0e-4
+
+seed: 42
+device: cpu
