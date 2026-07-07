@@ -8,6 +8,14 @@ from src.models.resnet_baseline import ResNetFeatureExtractor
 from src.models.videomae_extractor import VideoMAEFeatureExtractor
 from transformers import VideoMAEImageProcessor
 
+def cache_valida(path_features: str, num_video: int) -> bool:
+    """
+    Verifica che la cache delle feature esista e copra l'intero dataset
+    corrente: una cache creata su una versione precedente del dataset
+    (es. prima di un'estensione) è stantia e va rigenerata.
+    """
+    return os.path.exists(path_features) and torch.load(path_features).shape[0] == num_video
+
 def main():
     print("Inizio estrazione feature dai video tramite il modello ResNet18 pre-addestrato su ImageNet...")
     dataset_resnet = VideoKineticsDataset()
@@ -18,7 +26,7 @@ def main():
     path_features_resnet = 'data/features_resnet18.pt'
     path_labels_resnet = 'data/labels_resnet18.pt'
 
-    if os.path.exists(path_features_resnet) and os.path.exists(path_labels_resnet):
+    if cache_valida(path_features_resnet, len(dataset_resnet)) and os.path.exists(path_labels_resnet):
         print("Feature e etichette già salvate. Caricamento...")
         features_resnet_list = torch.load(path_features_resnet)
         labels_resnet_list = torch.load(path_labels_resnet)
@@ -61,7 +69,7 @@ def main():
     path_features_videomae = 'data/features_videomae.pt'
     path_labels_videomae = 'data/labels_videomae.pt'
 
-    if os.path.exists(path_features_videomae) and os.path.exists(path_labels_videomae):
+    if cache_valida(path_features_videomae, len(dataset_videomae)) and os.path.exists(path_labels_videomae):
         print("Feature e etichette già salvate. Caricamento...")
         features_videomae_list = torch.load(path_features_videomae)
         labels_videomae_list = torch.load(path_labels_videomae)
