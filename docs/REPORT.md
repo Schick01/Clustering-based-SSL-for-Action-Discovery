@@ -59,7 +59,7 @@ Il metodo segue lo schema DeepCluster: le assegnazioni del K-Means corrente dive
 
 ### 4.3 Infrastruttura di calcolo
 
-Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI**, adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet e un job per utente alla volta. Il determinismo bit-esatto della pipeline (due esecuzioni identiche producono storici, assegnazioni e pesi finali identici) è garantito da script di verifica dedicati in `tests/`, rieseguiti sul nuovo hardware prima degli esperimenti.
+Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI**, adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet e un job per utente alla volta.
 
 **Tabella 2: Tempi misurati, portatile vs cluster**
 
@@ -110,8 +110,6 @@ Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esper
 ![VideoMAE alle tre scale](../figures/videomae_scaling.png)
 
 *Come leggere il grafico: un pannello per metrica; asse x = iterazione del loop, asse y = qualità dei cluster; una linea per taglia di dataset. Conta la forma di ogni linea, non l'altezza: se sale, il loop sta migliorando i cluster su quel dataset. Le linee finiscono a iterazioni diverse perché il loop si ferma da solo quando converge.*
-
-**Tabella 4: VideoMAE alle tre scale (K=10, 2 blocchi; Δ = finale − iterazione 0).** *Nota: le iterazioni 0 sono calcolate sul dispositivo di ciascun run (GPU per VideoMAE): a parità di seed l'aritmetica diversa sposta il K-Means di ~2 punti rispetto ai valori CPU della Tabella 3 (per questo 0.342 e non 0.362 a 398 video), coerentemente con la sensibilità dichiarata nei limiti; ogni confronto resta interno al singolo run. Per ResNet, eseguita anche in locale, i valori coincidono.*
 
 | Scala | Iter. 0 (P/NMI/ARI) | Finale (P/NMI/ARI) | Δ (punti) | Stop |
 | :--- | :---: | :---: | :---: | :--- |
