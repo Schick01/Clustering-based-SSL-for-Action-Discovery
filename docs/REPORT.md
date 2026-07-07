@@ -111,6 +111,8 @@ Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esper
 
 *Come leggere il grafico: un pannello per metrica; asse x = iterazione del loop, asse y = qualità dei cluster; una linea per taglia di dataset. Conta la forma di ogni linea, non l'altezza: se sale, il loop sta migliorando i cluster su quel dataset. Le linee finiscono a iterazioni diverse perché il loop si ferma da solo quando converge.*
 
+**Tabella 4: VideoMAE alle tre scale (K=10, 2 blocchi; Δ = finale − iterazione 0)**
+
 | Scala | Iter. 0 (P/NMI/ARI) | Finale (P/NMI/ARI) | Δ (punti) | Stop |
 | :--- | :---: | :---: | :---: | :--- |
 | 398 | 0.342 / 0.264 / 0.116 | 0.349 / 0.283 / 0.129 | +0.8 / +1.9 / +1.4 | tetto (15) |
