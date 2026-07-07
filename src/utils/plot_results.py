@@ -19,6 +19,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+from matplotlib.ticker import MaxNLocator
 
 # --- Palette (validata, vedi report): serie categoriche in ordine fisso,
 # rampa ordinale blu per le scale del dataset (più scuro = più dati) ---
@@ -52,6 +53,11 @@ def load_history(run_name: str) -> list[dict]:
     """Carica lo storico di un run dal suo ``history.json``."""
     with open(os.path.join(LOGS_DIR, run_name, "history.json"), encoding="utf-8") as f:
         return json.load(f)
+
+
+def integer_x_axis(ax: plt.Axes) -> None:
+    """Forza tick interi sull'asse x (le iterazioni sono conteggi discreti)."""
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
 
 def style_axes(ax: plt.Axes, grid_axis: str = "y") -> None:
@@ -222,6 +228,7 @@ def fig_videomae_scaling_curves() -> None:
             ax.plot([e["iteration"] for e in hist], [e[metric] * 100 for e in hist],
                     marker="o", markersize=5.5, linewidth=2,
                     color=ORDINAL_BLUES[r_index], label=label)
+        integer_x_axis(ax)
         ax.set_xlabel("iterazione", fontsize=11.5, color=INK2)
         ax.set_ylabel(f"{METRIC_LABELS[metric]} (%)", fontsize=11.5, color=INK2)
         ax.set_title(METRIC_LABELS[metric], fontsize=13, color=INK)
@@ -325,6 +332,7 @@ def fig_stability() -> None:
         ax.axhline(0.95, color=MUTED, linewidth=1.4, linestyle="--")
         ax.text(0.6, 0.953, "soglia di stop (0.95)", fontsize=9.5, color=MUTED)
         ax.set_ylim(0.63, 1.0)
+        integer_x_axis(ax)
         ax.set_xlabel("iterazione", fontsize=11.5, color=INK2)
         ax.set_ylabel("NMI tra assegnazioni consecutive", fontsize=11.5, color=INK2)
         ax.set_title(backbone, fontsize=13, color=INK)
