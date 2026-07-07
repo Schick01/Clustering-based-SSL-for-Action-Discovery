@@ -22,7 +22,7 @@ Oltre all'implementazione completa della pipeline richiesta dalla traccia, il pr
 
 Il punto di partenza è un sottoinsieme di **Kinetics-400** con 10 classi di azione (*archery, driving car, javelin throw, passing American football, playing drums, playing guitar, playing tennis, pull ups, scuba diving, squat*): **398 video** (~35–45 per classe), organizzati come `data/<classe>/*.mp4`. Da ogni video vengono campionati **16 frame uniformi**, ridimensionati a 224×224.
 
-Il dataset è cresciuto due volte nel corso del progetto (il capitolo 5 ne racconta le ragioni). Quando i primi esperimenti hanno indicato in 398 campioni il probabile collo di bottiglia del metodo, lo abbiamo esteso attingendo agli **archivi tar ufficiali** di Kinetics-400 con uno script di harvesting in streaming: ogni archivio viene scaricato, filtrato con i CSV ufficiali di annotazione tenendo solo i video delle nostre 10 classi, ed eliminato. La prima estensione (split *val* e *test*) porta il dataset a **1.865 video**; la seconda (split *train*, con arresto automatico a quota 500 video per classe) a **5.802 video**, dopo la rimozione di 6 file corrotti individuati come clip interamente nere alla decodifica.
+Il dataset è cresciuto due volte nel corso del progetto (il capitolo 5 ne racconta le ragioni). Quando i primi esperimenti hanno indicato in 398 campioni il probabile collo di bottiglia del metodo, lo abbiamo esteso attingendo agli **archivi tar ufficiali** di Kinetics-400. La prima estensione (split *val* e *test*) porta il dataset a **1.865 video**; la seconda (split *train*, con arresto automatico a quota 500 video per classe) a **5.802 video**, dopo la rimozione di 6 file corrotti individuati come clip interamente nere alla decodifica.
 
 **Tabella 1: Le tre fasi del dataset**
 
@@ -51,7 +51,7 @@ La valutazione usa tre metriche complementari, calcolate da un unico modulo cond
 Il metodo segue lo schema DeepCluster: le assegnazioni del K-Means corrente diventano **pseudo-label** per un breve fine-tuning del backbone; con il backbone aggiornato si riestraggono le feature e si ri-clusterizza. L'**iterazione 0** (K-Means sulle feature pre-addestrate, prima di ogni fine-tuning) coincide per costruzione con la baseline, il che rende ogni curva confrontabile col punto di partenza. Presentiamo alcune delle decisioni prese riguardo l'architettura dei metodi:
 
 - **Clustering**: K-Means su feature **L2-normalizzate** (geometria coseno; effetto quantificato nel paragrafo 5.1), K=10 fisso.
-- **Fine-tuning selettivo**: con pochi dati e pseudo-label rumorose, adattare tutto il backbone distruggerebbe il pre-training. Si sbloccano solo i layer semantici alti: `layer4` per ResNet18 (8,4M parametri su 11,2M, statistiche BatchNorm congelate) e gli **ultimi 2 blocchi** encoder per VideoMAE (14,2M su 86,2M).
+- **Fine-tuning selettivo**: con pochi dati e pseudo-label rumorose, adattare tutto il backbone distruggerebbe il pre-training. Si sbloccano solo i layer semantici alti: **layer4** per ResNet18 (8,4M parametri su 11,2M, statistiche BatchNorm congelate) e gli **ultimi 2 blocchi** encoder per VideoMAE (14,2M su 86,2M).
 - **Anti-collasso**: cross-entropy **pesata con l'inverso della dimensione dei cluster** (senza, i cluster grandi dominano il gradiente e degenerano); le dimensioni dei cluster sono monitorate a ogni iterazione.
 - **Criterio di stop interno**: il loop si ferma quando la NMI **tra le assegnazioni di due iterazioni consecutive** supera 0,95, con un tetto massimo di iterazioni.
 
@@ -91,7 +91,7 @@ Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su 
 
 ![ResNet 398: regime aggressivo vs gentile](../figures/resnet398_regimes.png)
 
-*Come leggere il grafico: ogni punto è un'iterazione del ciclo esterno (clustering → addestramento → re-clustering), uguale per entrambe le linee; le epoche misurano quanto addestramento avviene dentro ciascuna iterazione. Le due linee partono dallo stesso valore (stessa baseline) e differiscono solo per l'intensità dell'addestramento. Il run rosso si allena il doppio a ogni iterazione, eppure peggiora: la loss molto bassa (pannello destro) rivela che sta memorizzando le pseudo-label, errori compresi.*
+*Come leggere il grafico: ogni punto è un'iterazione del ciclo (clustering → addestramento → re-clustering), uguale per entrambe le linee; le epoche misurano quanto addestramento avviene dentro ciascuna iterazione. Le due linee partono dallo stesso valore (stessa baseline) e differiscono solo per l'intensità dell'addestramento. Il run rosso si allena il doppio a ogni iterazione, eppure peggiora: la loss molto bassa (pannello destro) rivela che sta memorizzando le pseudo-label, errori compresi.*
 
 A ogni iterazione la rete viene addestrata sui cluster correnti come se fossero etichette vere, ma i cluster correnti sono in parte sbagliati: quanto intensamente addestrarla è la scelta decisiva. Nel primo run (in rosso, 2 epoche per iterazione, learning rate 10⁻⁴) l'addestramento era troppo intenso: la rete imparava le pseudo-label quasi alla perfezione, **errori compresi**, come dimostrava la loss che crollava sotto 0,5. Memorizzare i cluster attuali non crea struttura nuova: al re-clustering successivo la partizione cambiava ogni volta senza migliorare, e la purity finale è scesa sotto la baseline.
 
@@ -115,7 +115,7 @@ Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esper
 | :--- | :---: | :---: | :---: | :--- |
 | 398 | 0.342 / 0.264 / 0.116 | 0.349 / 0.283 / 0.129 | +0.7 / +1.9 / +1.4 | tetto (15) |
 | 1.865 | 0.301 / 0.226 / 0.111 | 0.335 / 0.252 / 0.145 | **+3.3 / +2.6 / +3.4** | **convergenza (8)** |
-| 5.802 (LR/3) | 0.311 / 0.221 / 0.119 | 0.319 / 0.241 / 0.135 | +0.8 / +2.0 / +1.5 | convergenza (7) |
+| 5.802 | 0.311 / 0.221 / 0.119 | 0.319 / 0.241 / 0.135 | +0.8 / +2.0 / +1.5 | convergenza (7) |
 
 **Tabella 5: ResNet18 alle tre scale (regime gentile; Δ = finale − iterazione 0)**
 
@@ -123,11 +123,11 @@ Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esper
 | :--- | :---: | :---: | :---: | :--- |
 | 398 | 0.591 / 0.557 / 0.401 | 0.621 / 0.554 / 0.422 | +3.0 / −0.3 / +2.1 | tetto (10) |
 | 1.865 | 0.597 / 0.533 / 0.381 | 0.600 / 0.542 / 0.416 | +0.2 / +0.9 / +3.5 | convergenza (8) |
-| 5.802 (LR/3) | 0.596 / 0.521 / 0.385 | 0.607 / 0.532 / 0.422 | +1.2 / +1.1 / +3.6 | convergenza (9) |
+| 5.802 | 0.596 / 0.521 / 0.385 | 0.607 / 0.532 / 0.422 | +1.2 / +1.1 / +3.6 | convergenza (9) |
 
 ![Guadagni per scala](../figures/scaling_deltas.png)
 
-*Come leggere il grafico: ogni barra è il guadagno netto del loop (finale − iterazione 0) in punti percentuali. Nel pannello VideoMAE le barre salgono da 398 a 1.865 e si riabbassano a 5.802: questa forma "a campana" è la sintesi visiva del paragrafo.*
+*Come leggere il grafico: ogni barra è il guadagno netto del loop (finale − iterazione 0) in punti percentuali. Nel pannello VideoMAE le barre salgono da 398 a 1.865 e si riabbassano a 5.802.*
 
 ![Convergenza del loop](../figures/stability_convergence.png)
 
@@ -139,15 +139,15 @@ Il terzo punto ha richiesto un passaggio in più, diventato un risultato a sé. 
 
 Con l'addestramento sistemato, il verdetto è pulito: **il beneficio del loop su VideoMAE ha il suo massimo attorno a ~2.000 video e poi satura** (+0,8 di purity a 5.802 contro +3,3 a 1.865). Più dati accendono il metodo, ma oltre una certa soglia non lo spingono più su.
 
-### 5.5 Ablation: la configurazione standard, validata per misura
+### 5.5 Approfondimento sul dataset intermedio
 
 ![Ablation su VideoMAE](../figures/ablations_videomae.png)
 
-Sulla scala intermedia abbiamo testato le due leve che avrebbero potuto spingere VideoMAE più su. **Over-clustering (K=50)**, ingrediente canonico di DeepCluster: da noi frammenta senza guadagnare (guadagni interni dimezzati, nessuna convergenza, cluster degeneri da 3–4 campioni); con ~37 video attesi per cluster manca la popolosità che lo rende utile a grande scala. **Più capacità (4 blocchi invece di 2)**: converge prima ma a una partizione peggiore, con la loss più bassa a fare da firma: la capacità extra si spende in memorizzazione delle pseudo-label, non in struttura. Due ablation negative, ed è il loro valore: la configurazione standard (K=10, 2 blocchi, regime gentile scalato) è un massimo locale misurato, non una scelta arbitraria.
+Sulla scala intermedia abbiamo testato le due leve che avrebbero potuto spingere VideoMAE più su. **Over-clustering (K=50)**, ingrediente canonico di DeepCluster: da noi frammenta senza guadagnare: con ~37 video attesi per cluster manca la popolosità che lo rende utile a grande scala. **Più capacità (4 blocchi invece di 2)**: converge prima ma a una partizione peggiore, con la loss più bassa.
 
 ### 5.6 Lettura d'insieme
 
-La mappa che emerge: su **feature mature** (ResNet/ImageNet) il loop *raffina*, con un tetto di purity vicino alla baseline L2 (~0,60–0,62 a ogni scala) ma una coerenza strutturale in miglioramento costante (ARI +2÷3,6); su **feature grezze** (VideoMAE) il loop *costruisce*, ma solo sopra una scala minima di dati che ne innesca il bootstrap, e con rendimenti che saturano presto. Il divario tra i due mondi (~0,32 vs ~0,61 di purity) si riduce ma non si colma: alle scale accessibili a un progetto accademico, le pseudo-label non sostituiscono la supervisione.
+Mettendo insieme i sei esperimenti, il quadro finale è questo. **In assoluto vince ResNet18**: con il loop arriva a purity ~0,60–0,62 a ogni scala, quasi il doppio di VideoMAE, che anche nel suo run migliore si ferma a ~0,33–0,35. Ma i due backbone raccontano due comportamenti diversi del metodo. Su ResNet, le cui feature ImageNet partono già organizzate, il loop *raffina*: la purity guadagna poco perché è già vicina al suo tetto, mentre la coerenza interna dei cluster migliora sempre (ARI da +2 a +3,6 punti a ogni scala). Su VideoMAE, le cui feature partono senza struttura, il loop *costruisce*: i guadagni relativi sono i più grandi dell'intero progetto quando i dati bastano, ed è l'unico caso in cui il metodo genera separabilità che prima non c'era; ma la partenza è così arretrata che il distacco resta enorme. Il divario si riduce, non si colma: alle scale di questo progetto, le pseudo-label non sostituiscono la supervisione, e un backbone supervisionato resta nettamente preferibile a uno self-supervised adattato con il clustering iterativo.
 
 Nota qualitativa dalle assegnazioni: le classi con una firma visiva di scena forte (*scuba diving*, dominata dal blu subacqueo) formano cluster puri già in baseline; azioni diverse in ambienti simili (*pull ups* e *squat*, entrambe in palestra) restano le più confuse, coerentemente con backbone che vedono più la scena che il movimento (il mean pooling temporale scarta la dinamica).
 
