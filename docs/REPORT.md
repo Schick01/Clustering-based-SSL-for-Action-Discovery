@@ -85,13 +85,15 @@ Gli esperimenti sono presentati nell'ordine in cui sono avvenuti: ogni passo è 
 | VideoMAE | grezze | 0.3367 | | 0.2642 | 0.1176 |
 | VideoMAE | + L2-norm | 0.3417 | +0,5 | 0.2642 | 0.1157 |
 
-Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando a costo zero uno spazio già semanticamente strutturato (su VideoMAE, dove la struttura manca, non cambia quasi nulla). Secondo: tra le due configurazioni con L2-norm, quelle da cui parte il metodo iterativo, il divario tra i backbone è di **~25 punti** (0.5905 contro 0.3417), e non è un difetto di implementazione (verificato fin nei pesi del checkpoint): il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3.
+Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando uno spazio già semanticamente strutturato (su VideoMAE, dove la struttura manca, non cambia quasi nulla). Secondo: tra le due configurazioni con L2-norm, quelle da cui parte il metodo iterativo, il divario tra i backbone è di **~25 punti** (0.5905 contro 0.3417), e non è un difetto di implementazione (verificato fin nei pesi del checkpoint): il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3.
 
-### 5.2 ResNet iterativo: il regime di training decide tutto
+### 5.2 ResNet iterativo
 
 ![ResNet 398: regime aggressivo vs gentile](../figures/resnet398_regimes.png)
 
-Il primo run del loop (2 epoche/iterazione, lr backbone 10⁻⁴) è stato un fallimento istruttivo: la loss crollava sotto 0,5 già in due epoche (la rete *memorizzava* le pseudo-label) e la partizione si rimescolava a ogni giro senza migliorare. La diagnosi ci ha dato il termometro usato per tutto il resto del progetto: **la loss di training misura l'aggressività del regime**. Con passi dieci volte più piccoli (1 epoca, lr 10⁻⁵) lo stesso identico loop si è messo a *raffinare*: purity da 0.5905 a **0.6206** (+3,0), ARI +2,1, stabilità delle pseudo-label in crescita monotona. Regola emersa: tante iterazioni brevi, non poche lunghe.
+A ogni iterazione la rete viene addestrata sui cluster correnti come se fossero etichette vere, ma i cluster correnti sono in parte sbagliati: quanto intensamente addestrarla è la scelta decisiva. Nel primo run (2 epoche per iterazione, learning rate 10⁻⁴) l'addestramento era troppo intenso: la rete imparava le pseudo-label quasi alla perfezione, **errori compresi**, come dimostrava la loss che crollava sotto 0,5. Memorizzare i cluster attuali non crea struttura nuova: al re-clustering successivo la partizione cambiava ogni volta senza migliorare, e la purity finale è scesa sotto la baseline.
+
+Con un addestramento dieci volte più leggero (1 epoca, learning rate 10⁻⁵), lo stesso identico loop ha cambiato comportamento: a ogni iterazione la rete assorbe solo i pattern condivisi da molti video (statisticamente quelli corretti) e non fa in tempo a memorizzare i singoli errori. Risultato: purity da 0.5905 a **0.6206** (+3,0 punti), ARI +2,1, e cluster sempre più stabili di iterazione in iterazione. Da questo esperimento abbiamo ricavato due strumenti usati in tutto il resto del progetto: **la loss di training come spia** (troppo bassa significa memorizzazione, non apprendimento) e la regola pratica *tante iterazioni brevi, meglio di poche lunghe*.
 
 ### 5.3 VideoMAE a 398 video: un risultato negativo onesto
 
