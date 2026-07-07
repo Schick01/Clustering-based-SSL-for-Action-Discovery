@@ -87,21 +87,25 @@ Gli esperimenti sono presentati nell'ordine in cui sono avvenuti: ogni passo è 
 
 Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando uno spazio già semanticamente strutturato (su VideoMAE, dove la struttura manca, non cambia quasi nulla). Secondo: tra le due configurazioni con L2-norm, quelle da cui parte il metodo iterativo, il divario tra i backbone è di **~25 punti** (0.5905 contro 0.3417), e non è un difetto di implementazione (verificato fin nei pesi del checkpoint): il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3.
 
-### 5.2 ResNet iterativo
+### 5.2 ResNet iterativo: due approcci diversi
 
 ![ResNet 398: regime aggressivo vs gentile](../figures/resnet398_regimes.png)
 
-A ogni iterazione la rete viene addestrata sui cluster correnti come se fossero etichette vere, ma i cluster correnti sono in parte sbagliati: quanto intensamente addestrarla è la scelta decisiva. Nel primo run (2 epoche per iterazione, learning rate 10⁻⁴) l'addestramento era troppo intenso: la rete imparava le pseudo-label quasi alla perfezione, **errori compresi**, come dimostrava la loss che crollava sotto 0,5. Memorizzare i cluster attuali non crea struttura nuova: al re-clustering successivo la partizione cambiava ogni volta senza migliorare, e la purity finale è scesa sotto la baseline.
+A ogni iterazione la rete viene addestrata sui cluster correnti come se fossero etichette vere, ma i cluster correnti sono in parte sbagliati: quanto intensamente addestrarla è la scelta decisiva. Nel primo run (in rosso, 2 epoche per iterazione, learning rate 10⁻⁴) l'addestramento era troppo intenso: la rete imparava le pseudo-label quasi alla perfezione, **errori compresi**, come dimostrava la loss che crollava sotto 0,5. Memorizzare i cluster attuali non crea struttura nuova: al re-clustering successivo la partizione cambiava ogni volta senza migliorare, e la purity finale è scesa sotto la baseline.
 
-Con un addestramento dieci volte più leggero (1 epoca, learning rate 10⁻⁵), lo stesso identico loop ha cambiato comportamento: a ogni iterazione la rete assorbe solo i pattern condivisi da molti video (statisticamente quelli corretti) e non fa in tempo a memorizzare i singoli errori. Risultato: purity da 0.5905 a **0.6206** (+3,0 punti), ARI +2,1, e cluster sempre più stabili di iterazione in iterazione. Da questo esperimento abbiamo ricavato due strumenti usati in tutto il resto del progetto: **la loss di training come spia** (troppo bassa significa memorizzazione, non apprendimento) e la regola pratica *tante iterazioni brevi, meglio di poche lunghe*.
+Con un addestramento dieci volte più leggero (in blu, 1 epoca, learning rate 10⁻⁵), lo stesso identico loop ha cambiato comportamento: a ogni iterazione la rete assorbe solo i pattern condivisi da molti video (statisticamente quelli corretti) e non fa in tempo a memorizzare i singoli errori. Risultato: purity da 0.5905 a **0.6206** (+3,0 punti), ARI +2,1, e cluster sempre più stabili di iterazione in iterazione. Da questo esperimento abbiamo ricavato due strumenti usati in tutto il resto del progetto: **la loss di training come spia** (troppo bassa significa memorizzazione, non apprendimento) e la regola pratica *tante iterazioni brevi, meglio di poche lunghe*.
 
-### 5.3 VideoMAE a 398 video: un risultato negativo onesto
+### 5.3 VideoMAE a 398 video: un risultato negativo
 
-Sullo stesso dataset il loop calibrato non ha smosso VideoMAE: +0,7 punti di purity e stabilità ferma tra 0,71 e 0,85 per 15 iterazioni, senza mai convergere. Il training funzionava (loss in discesa regolare) e i cluster non collassavano: semplicemente **il segnale non bastava a innescare il bootstrap** su feature prive di struttura semantica di partenza. L'ipotesi più fondata era la scala (DeepCluster opera su 1,3 milioni di immagini, noi su 398): da qui la prima estensione del dataset.
+Sullo stesso dataset il loop calibrato non ha smosso VideoMAE: +0,7 punti di purity e stabilità ferma tra 0,71 e 0,85 per 15 iterazioni, senza mai convergere. Il training funzionava (loss in discesa regolare) e i cluster non collassavano. L'ipotesi più fondata era la scala (DeepCluster opera su 1,3 milioni di immagini, noi su 398): da qui la prima estensione del dataset.
 
 ### 5.4 Lo studio di scaling: il metodo si innesca, poi satura
 
+Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esperimento a tre taglie di dataset: 398, 1.865 e 5.802 video. Una premessa di lettura: i valori assoluti **non si confrontano tra taglie diverse**, perché ogni dataset è un compito a sé (più video significa più varietà, e infatti le baseline scendono); il confronto onesto è *dentro* ogni taglia, tra punto di arrivo e punto di partenza (la colonna **Δ = finale − iterazione 0** delle tabelle).
+
 ![VideoMAE alle tre scale](../figures/videomae_scaling.png)
+
+*Come leggere il grafico: un pannello per metrica; asse x = iterazione del loop, asse y = qualità dei cluster; una linea per taglia di dataset (più scura = più dati). Conta la forma di ogni linea, non l'altezza: se sale, il loop sta migliorando i cluster su quel dataset. Le linee finiscono a iterazioni diverse perché il loop si ferma da solo quando converge.*
 
 **Tabella 4: VideoMAE alle tre scale (K=10, 2 blocchi; Δ = finale − iterazione 0)**
 
@@ -121,11 +125,17 @@ Sullo stesso dataset il loop calibrato non ha smosso VideoMAE: +0,7 punti di pur
 
 ![Guadagni per scala](../figures/scaling_deltas.png)
 
+*Come leggere il grafico: ogni barra è il guadagno netto del loop (finale − iterazione 0) in punti percentuali. Nel pannello VideoMAE le barre salgono da 398 a 1.865 e si riabbassano a 5.802: questa forma "a campana" è la sintesi visiva del paragrafo.*
+
 ![Convergenza del loop](../figures/stability_convergence.png)
 
-A **1.865 video** la svolta: per la prima volta il loop su VideoMAE è **convergito autonomamente** (iterazione 8), migliorando tutte le metriche (l'ARI, la più severa, del 30% relativo). Il confronto corretto è sempre *dentro* la stessa scala, perché le baseline assolute non sono confrontabili tra scale (i video aggiunti rendono il task più vario); e dentro la scala il salto 398→1.865 è netto su ogni metrica.
+*Come leggere il grafico: misura quanto i cluster cambiano tra un'iterazione e la successiva (1,0 = partizione identica alla precedente), senza usare le etichette vere. Una linea che sale verso la soglia tratteggiata (0,95) indica che il loop si sta assestando; toccarla significa fermarsi da soli. Le linee dei 398 video non la raggiungono mai.*
 
-Il terzo punto ha richiesto un passaggio in più, diventato un risultato a sé. A **5.802 video** con la stessa configurazione, *entrambi* i backbone sono regrediti (ResNet: Δ purity −1,0) con la loss di nuovo in zona memorizzazione: "1 epoca" a scala tripla significa il triplo dei passi di gradiente per iterazione. **La gentilezza del regime va misurata in update, non in epoche.** Riducendo il learning rate del backbone dello stesso fattore di crescita del dataset (÷3), la convergenza è tornata su entrambi i backbone (il run non calibrato resta nel registro come controfattuale che isola l'effetto). Con il regime a posto, il verdetto è pulito: **il beneficio del loop su VideoMAE ha il suo massimo attorno a ~2.000 video e poi satura** (+0,8 di purity a 5.802 contro +3,3 a 1.865). Più dati accendono il metodo, ma non lo fanno crescere indefinitamente.
+Il primo risultato arriva a **1.865 video**: il loop che a 398 girava a vuoto ora funziona, migliora tutte le metriche (Δ +3,3/+2,6/+3,4; l'ARI, la più severa, del 30% relativo) e per la prima volta **converge autonomamente** all'iterazione 8, segno che ha trovato una partizione stabile.
+
+Il terzo punto ha richiesto un passaggio in più, diventato un risultato a sé. A **5.802 video** con le stesse impostazioni, *entrambi* i backbone sono peggiorati (ResNet: Δ purity −1,0). Il motivo è il fenomeno del paragrafo 5.2 sotto altra forma: "1 epoca" su un dataset 3 volte più grande significa il triplo di aggiornamenti dei pesi per iterazione, quindi l'addestramento era tornato troppo intenso senza che avessimo cambiato nulla. **L'intensità dell'addestramento va misurata in numero di update, non di epoche.** Riducendo il learning rate del backbone dello stesso fattore di crescita del dataset (÷3), la convergenza è tornata su entrambi i backbone (il run non calibrato resta nel registro come controprova che isola l'effetto).
+
+Con l'addestramento sistemato, il verdetto è pulito: **il beneficio del loop su VideoMAE ha il suo massimo attorno a ~2.000 video e poi satura** (+0,8 di purity a 5.802 contro +3,3 a 1.865). Più dati accendono il metodo, ma oltre una certa soglia non lo spingono più su.
 
 ### 5.5 Ablation: la configurazione standard, validata per misura
 
