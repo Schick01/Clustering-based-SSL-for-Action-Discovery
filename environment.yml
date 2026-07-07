@@ -16,11 +16,10 @@ dependencies:
   # Add other conda packages here
   - pip:
       - numpy==2.2.6
-      - pandas
       - matplotlib
       - scikit-learn==1.7.2
       - pyyaml
-      - tensorboard
+      - requests
       - tqdm
       - opencv-python
       # Pin alla serie 4.x: dalla 5.x il caricamento di VideoMAE scarta i
