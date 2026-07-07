@@ -22,7 +22,7 @@ Oltre all'implementazione completa della pipeline richiesta dalla traccia, il pr
 
 Il punto di partenza è un sottoinsieme di **Kinetics-400** con 10 classi di azione (*archery, driving car, javelin throw, passing American football, playing drums, playing guitar, playing tennis, pull ups, scuba diving, squat*): **398 video** (~35–45 per classe), organizzati come `data/<classe>/*.mp4`. Da ogni video vengono campionati **16 frame uniformi**, ridimensionati a 224×224.
 
-Il dataset è cresciuto due volte nel corso del progetto (il capitolo 5 ne racconta le ragioni). Quando i primi esperimenti hanno indicato in 398 campioni il probabile collo di bottiglia del metodo, lo abbiamo esteso attingendo agli **archivi tar ufficiali** di Kinetics-400. La prima estensione (split *val* e *test*) porta il dataset a **1.865 video**; la seconda (split *train*, con arresto automatico a quota 500 video per classe) a **5.802 video**, dopo la rimozione di 6 file corrotti individuati come clip interamente nere alla decodifica.
+Il dataset è cresciuto due volte nel corso del progetto (il capitolo 5 ne racconta le ragioni). Quando i primi esperimenti hanno indicato in 398 campioni il probabile collo di bottiglia del metodo, lo abbiamo esteso attingendo agli **archivi ufficiali** di Kinetics-400. La prima estensione (split *val* e *test*) porta il dataset a **1.865 video**; la seconda (split *train*) a **5.802 video**.
 
 **Tabella 1: Le tre fasi del dataset**
 
@@ -34,7 +34,9 @@ Il dataset è cresciuto due volte nel corso del progetto (il capitolo 5 ne racco
 
 ![Crescita del dataset](../figures/dataset_growth.png)
 
-Due note metodologiche. **(a)** Mescolare gli split di Kinetics è legittimo nel nostro contesto: non c'è un addestramento supervisionato con train/test da separare, le etichette servono solo a valutare. Nessuna sovrapposizione tra le fasi (verificato: i 398 video originali provengono tutti dallo split *train*). **(b)** Come preprocessing, i frame decodificati vengono cachati su disco in `uint8` una sola volta; la **data augmentation** (flip orizzontale e random resized crop, campionati una volta per clip e applicati identici a tutti i 16 frame per preservare la coerenza temporale) è applicata solo durante il fine-tuning, mai in fase di estrazione feature.
+Due note metodologiche:
+- Mescolare gli split di Kinetics è legittimo nel nostro contesto: non c'è un addestramento supervisionato con train/test da separare, le etichette servono solo a valutare. Nessuna sovrapposizione tra le fasi (verificato: i 398 video originali provengono tutti dallo split *train*).
+- Come preprocessing, i frame decodificati vengono cachati su disco in `uint8` una sola volta; la **data augmentation** (flip orizzontale e random resized crop, campionati una volta per clip e applicati identici a tutti i 16 frame per preservare la coerenza temporale) è applicata solo durante il fine-tuning, mai in fase di estrazione feature.
 
 ## 4. Metodologia e architettura
 
@@ -50,14 +52,14 @@ La valutazione usa tre metriche complementari, calcolate da un unico modulo cond
 
 Il metodo segue lo schema DeepCluster: le assegnazioni del K-Means corrente diventano **pseudo-label** per un breve fine-tuning del backbone; con il backbone aggiornato si riestraggono le feature e si ri-clusterizza. L'**iterazione 0** (K-Means sulle feature pre-addestrate, prima di ogni fine-tuning) coincide per costruzione con la baseline, il che rende ogni curva confrontabile col punto di partenza. Presentiamo alcune delle decisioni prese riguardo l'architettura dei metodi:
 
-- **Clustering**: K-Means su feature **L2-normalizzate** (geometria coseno; effetto quantificato nel paragrafo 5.1), K=10 fisso.
-- **Fine-tuning selettivo**: con pochi dati e pseudo-label rumorose, adattare tutto il backbone distruggerebbe il pre-training. Si sbloccano solo i layer semantici alti: **layer4** per ResNet18 (8,4M parametri su 11,2M, statistiche BatchNorm congelate) e gli **ultimi 2 blocchi** encoder per VideoMAE (14,2M su 86,2M).
+- **Clustering**: K-Means su feature **L2-normalizzate**, K=10 fisso.
+- **Fine-tuning selettivo**: con pochi dati e pseudo-label rumorose, adattare tutto il backbone distruggerebbe il pre-training. Si sbloccano solo i layer semantici alti: **layer4** per ResNet18 e gli **ultimi 2 blocchi** encoder per VideoMAE.
 - **Anti-collasso**: cross-entropy **pesata con l'inverso della dimensione dei cluster** (senza, i cluster grandi dominano il gradiente e degenerano); le dimensioni dei cluster sono monitorate a ogni iterazione.
 - **Criterio di stop interno**: il loop si ferma quando la NMI **tra le assegnazioni di due iterazioni consecutive** supera 0,95, con un tetto massimo di iterazioni.
 
 ### 4.3 Infrastruttura di calcolo
 
-Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI**, adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet e un job per utente alla volta. Il determinismo della pipeline (due esecuzioni identiche producono storici, assegnazioni e pesi finali identici al bit) è verificato da script dedicati in `tests/`, rieseguiti sul nuovo hardware prima degli esperimenti.
+Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI**, adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet e un job per utente alla volta.
 
 **Tabella 2: Tempi misurati, portatile vs cluster**
 
@@ -85,7 +87,7 @@ Gli esperimenti sono presentati nell'ordine in cui sono avvenuti: ogni passo è 
 | VideoMAE | grezze | 0.3367 | | 0.2642 | 0.1176 |
 | VideoMAE | + L2-norm | 0.3618 | +2,5 | 0.2719 | 0.1274 |
 
-Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando uno spazio già semanticamente strutturato; su VideoMAE, dove la struttura di partenza manca, l'effetto c'è ma è tre volte più piccolo (+2,5). Secondo: tra le due configurazioni con L2-norm, quelle da cui parte il metodo iterativo, il divario tra i backbone è di **~23 punti** (0.5905 contro 0.3618), e non è un difetto di implementazione (verificato fin nei pesi del checkpoint): il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3.
+Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando uno spazio già semanticamente strutturato; su VideoMAE, dove la struttura di partenza manca, l'effetto c'è ma è tre volte più piccolo (+2,5). Secondo: tra le due configurazioni con L2-norm, quelle da cui parte il metodo iterativo, il divario tra i backbone è di **~23 punti** (0.5905 contro 0.3618), e non è un difetto di implementazione: il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3 della consegna.
 
 ### 5.2 ResNet iterativo: due approcci diversi
 
@@ -99,11 +101,11 @@ Con un addestramento dieci volte più leggero (in blu, 1 epoca, learning rate 10
 
 ### 5.3 VideoMAE a 398 video: un risultato negativo
 
-Sullo stesso dataset il loop calibrato non ha smosso VideoMAE: +0,8 punti di purity e stabilità ferma tra 0,71 e 0,85 per 15 iterazioni, senza mai convergere. Il training funzionava (loss in discesa regolare) e i cluster non collassavano. L'ipotesi più fondata era la scala (DeepCluster opera su 1,3 milioni di immagini, noi su 398): da qui la prima estensione del dataset.
+Sullo stesso dataset il loop non ha smosso VideoMAE: +0,8 punti di purity e stabilità ferma tra 0,71 e 0,85 per 15 iterazioni, senza mai convergere. Il training funzionava (loss in discesa regolare) e i cluster non collassavano. L'ipotesi più fondata era la scala (DeepCluster opera su 1,3 milioni di immagini, noi su 398): da qui la prima estensione del dataset.
 
-### 5.4 Lo studio di scaling: il metodo si innesca, poi satura
+### 5.4 Lo studio di scaling: il metodo al variare del dataset
 
-Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esperimento a tre taglie di dataset: 398, 1.865 e 5.802 video. Una premessa di lettura: i valori assoluti **non si confrontano tra taglie diverse**, perché ogni dataset è un compito a sé (più video significa più varietà, e infatti le baseline scendono); il confronto onesto è *dentro* ogni taglia, tra punto di arrivo e punto di partenza (la colonna **Δ = finale − iterazione 0** delle tabelle). Nota: le iterazioni 0 di queste tabelle sono calcolate sul dispositivo di ciascun run (GPU) e possono differire di 1–2 punti dai valori CPU della Tabella 3, per la diversa aritmetica amplificata dall'inizializzazione singola del K-Means; anche per questo ogni confronto è interno al singolo run.
+Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esperimento a tre taglie di dataset: 398, 1.865 e 5.802 video. Una premessa di lettura: i valori assoluti **non si confrontano tra taglie diverse**, perché ogni dataset è un compito a sé (più video significa più varietà, e infatti le baseline scendono); il confronto onesto è *dentro* ogni taglia, tra punto di arrivo e punto di partenza (la colonna **Δ = finale − iterazione 0** delle tabelle).
 
 ![VideoMAE alle tre scale](../figures/videomae_scaling.png)
 
@@ -162,7 +164,6 @@ A questo punto la domanda centrale ha una risposta netta: **il clustering iterat
 - Anche il dataset esteso resta 2–3 ordini di grandezza sotto la scala nativa di DeepCluster
 - Il mean pooling temporale scarta la dinamica del movimento, penalizzando proprio le classi che più ne avrebbero bisogno
 - L'augmentation è solo spaziale
-- Ogni configurazione è un singolo run a seed fisso (con determinismo bit-esatto): i Δ sotto il punto percentuale non sono distinguibili dal rumore di inizializzazione del K-Means, mentre i risultati principali (+8,5 della L2-norm, +3,3 dell'innesco a 1.865, il divario tra i backbone) ne sono ampiamente al di sopra
 
 **Le direzioni future** discendono dai limiti e dalla spiegazione precedente. La più promettente è provare backbone self-supervised con pre-training **contrastivo o di distillazione** (ad esempio DINOv2): quegli obiettivi producono feature separabili già da congelate, ed è lì che un backbone SSL può realisticamente competere con quello supervisionato nel clustering. Seguono: un segnale contrastivo o temporale accanto alle pseudo-label e la stima non supervisionata di K.
 
