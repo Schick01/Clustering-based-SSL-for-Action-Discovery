@@ -91,6 +91,8 @@ Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su 
 
 ![ResNet 398: regime aggressivo vs gentile](../figures/resnet398_regimes.png)
 
+*Come leggere il grafico: ogni punto è un'iterazione del ciclo esterno (clustering → addestramento → re-clustering), uguale per entrambe le linee; le epoche misurano quanto addestramento avviene dentro ciascuna iterazione. Le due linee partono dallo stesso valore (stessa baseline) e differiscono solo per l'intensità dell'addestramento. Il run rosso si allena il doppio a ogni iterazione, eppure peggiora: la loss molto bassa (pannello destro) rivela che sta memorizzando le pseudo-label, errori compresi.*
+
 A ogni iterazione la rete viene addestrata sui cluster correnti come se fossero etichette vere, ma i cluster correnti sono in parte sbagliati: quanto intensamente addestrarla è la scelta decisiva. Nel primo run (in rosso, 2 epoche per iterazione, learning rate 10⁻⁴) l'addestramento era troppo intenso: la rete imparava le pseudo-label quasi alla perfezione, **errori compresi**, come dimostrava la loss che crollava sotto 0,5. Memorizzare i cluster attuali non crea struttura nuova: al re-clustering successivo la partizione cambiava ogni volta senza migliorare, e la purity finale è scesa sotto la baseline.
 
 Con un addestramento dieci volte più leggero (in blu, 1 epoca, learning rate 10⁻⁵), lo stesso identico loop ha cambiato comportamento: a ogni iterazione la rete assorbe solo i pattern condivisi da molti video (statisticamente quelli corretti) e non fa in tempo a memorizzare i singoli errori. Risultato: purity da 0.5905 a **0.6206** (+3,0 punti), ARI +2,1, e cluster sempre più stabili di iterazione in iterazione. Da questo esperimento abbiamo ricavato due strumenti usati in tutto il resto del progetto: **la loss di training come spia** (troppo bassa significa memorizzazione, non apprendimento) e la regola pratica *tante iterazioni brevi, meglio di poche lunghe*.
@@ -105,7 +107,7 @@ Per verificare l'ipotesi della scala abbiamo rieseguito lo stesso identico esper
 
 ![VideoMAE alle tre scale](../figures/videomae_scaling.png)
 
-*Come leggere il grafico: un pannello per metrica; asse x = iterazione del loop, asse y = qualità dei cluster; una linea per taglia di dataset (più scura = più dati). Conta la forma di ogni linea, non l'altezza: se sale, il loop sta migliorando i cluster su quel dataset. Le linee finiscono a iterazioni diverse perché il loop si ferma da solo quando converge.*
+*Come leggere il grafico: un pannello per metrica; asse x = iterazione del loop, asse y = qualità dei cluster; una linea per taglia di dataset. Conta la forma di ogni linea, non l'altezza: se sale, il loop sta migliorando i cluster su quel dataset. Le linee finiscono a iterazioni diverse perché il loop si ferma da solo quando converge.*
 
 **Tabella 4: VideoMAE alle tre scale (K=10, 2 blocchi; Δ = finale − iterazione 0)**
 
