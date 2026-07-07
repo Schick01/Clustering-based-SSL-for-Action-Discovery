@@ -8,23 +8,21 @@
 
 Il progetto affronta la **Action Discovery non supervisionata** in video: dato un insieme di clip senza alcuna annotazione, l'obiettivo è far emergere raggruppamenti che corrispondano ad azioni ricorrenti, usando le etichette reali **esclusivamente come chiave di valutazione a posteriori**, mai durante il training. La traccia fissa quattro obiettivi minimi: una baseline K-Means su feature ResNet18, l'estrazione di feature con un modello self-supervised (VideoMAE), un **K-Means iterativo** in cui il clustering e la rappresentazione si migliorano a vicenda, e la valutazione tramite corrispondenza con le classi reali.
 
-La domanda scientifica centrale che ci siamo posti è questa: *il fine-tuning iterativo guidato da pseudo-label può rendere clusterizzabili delle rappresentazioni che non nascono per esserlo?* Le feature di ResNet18 (supervisionate su ImageNet) partono già semanticamente organizzate; quelle di VideoMAE (pre-training di ricostruzione mascherata) no. Il clustering iterativo in stile DeepCluster promette di colmare questo tipo di divario, ma è nato per milioni di immagini, il compito sarà quello di adattarlo anche ai video.
+La domanda centrale che ci siamo posti è questa: *il fine-tuning iterativo guidato da pseudo-label può rendere clusterizzabili delle rappresentazioni che non nascono per esserlo?* Le feature di ResNet18 (supervisionate su ImageNet) partono già semanticamente organizzate; quelle di VideoMAE (pre-training di ricostruzione mascherata) no. Il clustering iterativo in stile DeepCluster promette di colmare questo tipo di divario, ma è nato per milioni di immagini, il compito sarà quello di adattarlo anche ai video.
 
 ## 2. Contributi e valore aggiunto
 
 Oltre all'implementazione completa della pipeline richiesta dalla traccia, il progetto porta questi contributi:
 
 1. **Uno studio di scaling a tre punti** (398 → 1.865 → 5.802 video), reso possibile dall'estensione autonoma del dataset dagli archivi ufficiali di Kinetics-400: è l'esperimento che ha trasformato un risultato negativo in una comprensione del comportamento del metodo.
-2. **Un risultato di calibrazione con valore generale**: il regime di fine-tuning va scalato con la dimensione del dataset (in numero di update, non di epoche), dimostrato con controfattuali su entrambi i backbone.
-3. **Una scoperta collaterale a costo zero**: la sola L2-normalization delle feature prima del K-Means vale **+8,5 punti di purity** sulla baseline ResNet.
-4. **Due contributi di rigore** riusabili oltre questo progetto: la diagnosi di un difetto di caricamento dei pesi pre-addestrati di VideoMAE nelle versioni recenti di `transformers` (con test di guardia permanente), e una pipeline verificata come **bit-deterministica** sia su CPU sia su GPU.
-5. **Ablation documentate** (over-clustering K=50, capacità del backbone) che validano la configurazione adottata per misura e non per scelta arbitraria.
+2. **Fine-tuning dinamico adattato al dataset**: il regime di fine-tuning va scalato con la dimensione del dataset (in numero di update, non di epoche), dimostrato con controfattuali su entrambi i backbone.
+3. **Utilizzo della L2-normalization**: la sola L2-normalization delle feature prima del K-Means vale **+8,5 punti di purity** sulla baseline ResNet.
 
 ## 3. Dati utilizzati
 
 Il punto di partenza è un sottoinsieme di **Kinetics-400** con 10 classi di azione (*archery, driving car, javelin throw, passing American football, playing drums, playing guitar, playing tennis, pull ups, scuba diving, squat*): **398 video** (~35–45 per classe), organizzati come `data/<classe>/*.mp4`. Da ogni video vengono campionati **16 frame uniformi**, ridimensionati a 224×224.
 
-Il dataset è cresciuto due volte nel corso del progetto (il capitolo 5 ne racconta le ragioni). Quando i primi esperimenti hanno indicato in 398 campioni il probabile collo di bottiglia del metodo, lo abbiamo esteso attingendo agli **archivi tar ufficiali** di Kinetics-400 (CVD Foundation) con uno script di harvesting in streaming: ogni archivio viene scaricato, filtrato con i CSV ufficiali di annotazione tenendo solo i video delle nostre 10 classi, ed eliminato, mantenendo il picco di occupazione disco a ~2 GB a fronte di centinaia di GB di traffico. La prima estensione (split *val* e *test*) porta il dataset a **1.865 video**; la seconda (split *train*, con arresto automatico a quota 500 video per classe) a **5.802 video**, dopo la rimozione di 6 file corrotti individuati come clip interamente nere alla decodifica.
+Il dataset è cresciuto due volte nel corso del progetto (il capitolo 5 ne racconta le ragioni). Quando i primi esperimenti hanno indicato in 398 campioni il probabile collo di bottiglia del metodo, lo abbiamo esteso attingendo agli **archivi tar ufficiali** di Kinetics-400 con uno script di harvesting in streaming: ogni archivio viene scaricato, filtrato con i CSV ufficiali di annotazione tenendo solo i video delle nostre 10 classi, ed eliminato. La prima estensione (split *val* e *test*) porta il dataset a **1.865 video**; la seconda (split *train*, con arresto automatico a quota 500 video per classe) a **5.802 video**, dopo la rimozione di 6 file corrotti individuati come clip interamente nere alla decodifica.
 
 **Tabella 1: Le tre fasi del dataset**
 
@@ -42,7 +40,7 @@ Due note metodologiche. **(a)** Mescolare gli split di Kinetics è legittimo nel
 
 ### 4.1 Estrazione delle feature e baseline
 
-Due backbone estraggono una rappresentazione per video: **ResNet18** pre-addestrata su ImageNet (mean pooling temporale sui 16 frame → 512 dimensioni) e **VideoMAE-base** pre-addestrato con masked autoencoding (mean pooling dei token → 768 dimensioni; `transformers` è fissato alla serie 4.x dopo aver scoperto, e coperto con un test permanente, che le versioni 5.x scartano silenziosamente i bias di attention pre-addestrati del checkpoint). La baseline è un singolo K-Means con K=10 (pari al numero di classi, assunzione dichiarata) sulle feature così estratte.
+Due backbone estraggono una rappresentazione per video: **ResNet18** pre-addestrata su ImageNet e **VideoMAE-base** pre-addestrato con masked autoencoding. La baseline è un singolo K-Means con K=10 (pari al numero di classi, assunzione dichiarata) sulle feature così estratte.
 
 La valutazione usa tre metriche complementari, calcolate da un unico modulo condiviso tra baseline e metodo iterativo: **purity** (frazione di campioni coerenti con la classe maggioritaria del proprio cluster; cresce meccanicamente con K), **NMI** (informazione mutua normalizzata, robusta al numero di cluster) e **ARI** (indice di Rand corretto per il caso, severo verso i cluster spezzati).
 
@@ -50,17 +48,16 @@ La valutazione usa tre metriche complementari, calcolate da un unico modulo cond
 
 ![Schema del loop iterativo](../figures/iterative_loop_schema.png)
 
-Il metodo segue lo schema DeepCluster: le assegnazioni del K-Means corrente diventano **pseudo-label** per un breve fine-tuning del backbone; con il backbone aggiornato si riestraggono le feature e si ri-clusterizza. L'**iterazione 0** (K-Means sulle feature pre-addestrate, prima di ogni fine-tuning) coincide per costruzione con la baseline, il che rende ogni curva confrontabile col punto di partenza. Le scelte qualificanti:
+Il metodo segue lo schema DeepCluster: le assegnazioni del K-Means corrente diventano **pseudo-label** per un breve fine-tuning del backbone; con il backbone aggiornato si riestraggono le feature e si ri-clusterizza. L'**iterazione 0** (K-Means sulle feature pre-addestrate, prima di ogni fine-tuning) coincide per costruzione con la baseline, il che rende ogni curva confrontabile col punto di partenza. Presentiamo alcune delle decisioni prese riguardo l'architettura dei metodi:
 
 - **Clustering**: K-Means su feature **L2-normalizzate** (geometria coseno; effetto quantificato nel paragrafo 5.1), K=10 fisso.
 - **Fine-tuning selettivo**: con pochi dati e pseudo-label rumorose, adattare tutto il backbone distruggerebbe il pre-training. Si sbloccano solo i layer semantici alti: `layer4` per ResNet18 (8,4M parametri su 11,2M, statistiche BatchNorm congelate) e gli **ultimi 2 blocchi** encoder per VideoMAE (14,2M su 86,2M).
-- **Testa e ottimizzatore ricreati a ogni iterazione**: gli ID dei cluster permutano tra un'iterazione e l'altra, e i momenti di AdamW accumulati su pseudo-label vecchie non hanno senso su quelle nuove. Learning rate differenziati (basso per il backbone pre-addestrato, alto per la testa nuova).
 - **Anti-collasso**: cross-entropy **pesata con l'inverso della dimensione dei cluster** (senza, i cluster grandi dominano il gradiente e degenerano); le dimensioni dei cluster sono monitorate a ogni iterazione.
-- **Criterio di stop interno**: il loop si ferma quando la NMI **tra le assegnazioni di due iterazioni consecutive** supera 0,95, con un tetto massimo di iterazioni. La decisione coinvolge solo partizioni non supervisionate: nel codice le etichette reali toccano un'unica funzione di valutazione, chiamata a valle delle decisioni e con output destinato ai soli log. Per lo stesso principio, il risultato dichiarato di ogni run è l'**ultima iterazione**, mai la migliore secondo le metriche vere.
+- **Criterio di stop interno**: il loop si ferma quando la NMI **tra le assegnazioni di due iterazioni consecutive** supera 0,95, con un tetto massimo di iterazioni.
 
 ### 4.3 Infrastruttura di calcolo
 
-Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI** (SLURM + Apptainer, NVIDIA L40S), adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet (pacchetti installati offline da wheel pre-scaricate, modelli HuggingFace copiati nella cache del cluster) e un job per utente alla volta. Il determinismo della pipeline (due esecuzioni identiche producono storici, assegnazioni e pesi finali identici al bit) è verificato da script dedicati in `tests/`, rieseguiti sul nuovo hardware prima degli esperimenti.
+Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI**, adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet e un job per utente alla volta. Il determinismo della pipeline (due esecuzioni identiche producono storici, assegnazioni e pesi finali identici al bit) è verificato da script dedicati in `tests/`, rieseguiti sul nuovo hardware prima degli esperimenti.
 
 **Tabella 2: Tempi misurati, portatile vs cluster**
 
@@ -71,26 +68,24 @@ Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la
 | Run iterativo VideoMAE, 1.865 video | impraticabile | 22 min |
 | Run iterativo VideoMAE, 5.802 video (15 iter.) | impraticabile | ~2 h |
 
-La seconda metà della campagna (7 run su dataset estesi, più le ablation) è costata in totale meno di una giornata di calcolo.
-
 ---
 
 ## 5. Risultati e discussione
 
 Gli esperimenti sono presentati nell'ordine in cui sono avvenuti: ogni passo è motivato dall'esito del precedente.
 
-### 5.1 Baseline, e una scoperta a costo zero
+### 5.1 Baseline, e una scoperta di L2-normalization
 
-**Tabella 3: Baseline sul dataset iniziale (398 video, K=10)**
+**Tabella 3: Baseline sul dataset iniziale (398 video, K=10). La colonna Δ mostra l'effetto della sola L2-normalization sulla purity, a parità di tutto il resto.**
 
-| Configurazione | Purity | NMI | ARI |
-| :--- | :---: | :---: | :---: |
-| ResNet18, K-Means | 0.5050 | 0.4898 | 0.3024 |
-| ResNet18, K-Means + **L2-norm** | **0.5905** | **0.5571** | **0.4013** |
-| VideoMAE, K-Means | 0.3367 | 0.2642 | 0.1176 |
-| VideoMAE, K-Means + L2-norm | 0.3417 | 0.2642 | 0.1157 |
+| Backbone | Feature | Purity | Δ Purity | NMI | ARI |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| ResNet18 | grezze | 0.5050 | | 0.4898 | 0.3024 |
+| ResNet18 | **+ L2-norm** | **0.5905** | **+8,5** | 0.5571 | 0.4013 |
+| VideoMAE | grezze | 0.3367 | | 0.2642 | 0.1176 |
+| VideoMAE | + L2-norm | 0.3417 | +0,5 | 0.2642 | 0.1157 |
 
-Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando a costo zero uno spazio già semanticamente strutturato (su VideoMAE, dove la struttura manca, non cambia quasi nulla). Secondo: il divario tra i due backbone è di **~25 punti**, e non è un difetto di implementazione (verificato fin nei pesi del checkpoint): il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3.
+Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando a costo zero uno spazio già semanticamente strutturato (su VideoMAE, dove la struttura manca, non cambia quasi nulla). Secondo: tra le due configurazioni con L2-norm, quelle da cui parte il metodo iterativo, il divario tra i backbone è di **~25 punti** (0.5905 contro 0.3417), e non è un difetto di implementazione (verificato fin nei pesi del checkpoint): il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3.
 
 ### 5.2 ResNet iterativo: il regime di training decide tutto
 
