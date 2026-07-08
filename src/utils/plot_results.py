@@ -376,6 +376,76 @@ def fig_ablations() -> None:
     save(fig, "ablations_videomae.png")
 
 
+def fig_baseline_l2_bars() -> None:
+    """F8 (per le slide) — baseline a 398 video: l'effetto della L2-norm."""
+    # Valori della Tabella 3 del report (ricalcolo CPU, a parità di condizioni)
+    labels = ["ResNet18\ngrezze", "ResNet18\n+ L2-norm", "VideoMAE\ngrezze", "VideoMAE\n+ L2-norm"]
+    values = [50.50, 59.05, 33.67, 36.18]
+    positions = [0.0, 1.0, 2.6, 3.6]
+    # Un solo colore di evidenziazione (le barre con L2), neutro per il resto
+    colors = [AXIS, BLUE, AXIS, BLUE]
+
+    fig = new_figure(9, 5)
+    ax = fig.add_subplot(111)
+    style_axes(ax)
+
+    bars = ax.bar(positions, values, width=0.8, color=colors)
+    for bar, value in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, value + 1.2, f"{value:.1f}",
+                ha="center", fontsize=13, color=INK)
+
+    # Annotazioni dei guadagni sopra le coppie di barre
+    ax.annotate("+8,5", xy=(0.5, 63.5), ha="center", fontsize=17,
+                fontweight="bold", color=BLUE)
+    ax.annotate("+2,5", xy=(3.1, 41.5), ha="center", fontsize=17,
+                fontweight="bold", color=BLUE)
+
+    ax.set_xticks(positions)
+    ax.set_xticklabels(labels, fontsize=13, color=INK)
+    ax.set_ylabel("Purity (%)", fontsize=13, color=INK2)
+    ax.set_ylim(0, 70)
+    ax.tick_params(labelsize=12)
+    ax.set_title(
+        "Baseline K-Means (398 video): la sola L2-normalization vale +8,5 punti su ResNet",
+        fontsize=15, color=INK, fontweight="bold", pad=14,
+    )
+    save(fig, "baseline_l2_bars.png")
+
+
+def fig_stability_videomae() -> None:
+    """F9 (per le slide) — stabilità VideoMAE, pannello singolo."""
+    runs = [
+        ("iterative_videomae", "398 video"),
+        ("iterative_videomae_n1865", "1.865 video"),
+        ("iterative_videomae_lr3e6_n5802", "5.802 video (LR calibrato)"),
+    ]
+
+    fig = new_figure(9, 5)
+    ax = fig.add_subplot(111)
+    style_axes(ax)
+
+    for r_index, (run, label) in enumerate(runs):
+        hist = load_history(run)
+        iters = [e["iteration"] for e in hist if e["stability"] is not None]
+        stability = [e["stability"] for e in hist if e["stability"] is not None]
+        ax.plot(iters, stability, marker="o", markersize=7, linewidth=2.5,
+                color=ORDINAL_BLUES[r_index], label=label)
+
+    ax.axhline(0.95, color=MUTED, linewidth=1.6, linestyle="--")
+    ax.text(0.6, 0.955, "soglia di stop (0.95)", fontsize=12, color=MUTED)
+    ax.set_ylim(0.63, 1.0)
+    integer_x_axis(ax)
+    ax.set_xlabel("iterazione", fontsize=13, color=INK2)
+    ax.set_ylabel("stabilità delle pseudo-label", fontsize=13, color=INK2)
+    ax.tick_params(labelsize=12)
+    ax.set_title(
+        "VideoMAE: la convergenza autonoma arriva solo con abbastanza dati",
+        fontsize=15, color=INK, fontweight="bold", pad=14,
+    )
+    ax.legend(frameon=False, fontsize=12, labelcolor=INK2, loc="lower right")
+    save(fig, "stability_videomae.png")
+
+
 def main() -> None:
     """Genera tutte le figure del report."""
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -388,6 +458,8 @@ def main() -> None:
     fig_scaling_deltas()
     fig_stability()
     fig_ablations()
+    fig_baseline_l2_bars()
+    fig_stability_videomae()
 
 
 if __name__ == "__main__":
