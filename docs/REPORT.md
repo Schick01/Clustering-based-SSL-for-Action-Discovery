@@ -89,6 +89,10 @@ Gli esperimenti sono presentati nell'ordine in cui sono avvenuti: ogni passo è 
 
 Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su ResNet, riorganizzando uno spazio già semanticamente strutturato; su VideoMAE, dove la struttura di partenza manca, l'effetto c'è ma è tre volte più piccolo (+2,5). Secondo: tra le due configurazioni con L2-norm il divario tra i backbone è di **~23 punti** (0.5905 contro 0.3618), e non è un difetto di implementazione: il pre-training di ricostruzione mascherata ottimizza il modello a *ricostruire*, non a *separare*. Ridurre questo divario senza etichette è la sfida dell'obiettivo 3 della consegna.
 
+![t-SNE degli embedding baseline](../figures/tsne_baselines.png)
+
+*Come leggere il grafico: ogni punto è un video proiettato in 2D con t-SNE (che preserva i vicinati), colorato con la classe reale (uso di sola visualizzazione). A sinistra le feature ResNet formano isole riconoscibili; a destra quelle VideoMAE sono una nuvola quasi indistinta: è il divario della Tabella 3 reso visibile. Il t-SNE è qualitativo: distanze tra isole e dimensioni non hanno significato metrico.*
+
 ### 5.2 ResNet iterativo: due approcci diversi
 
 ![ResNet 398: regime aggressivo vs gentile](../figures/resnet398_regimes.png)
@@ -151,7 +155,11 @@ Sulla scala intermedia abbiamo testato le due leve che avrebbero potuto spingere
 
 Mettendo insieme gli esperimenti, il quadro finale è questo. **In assoluto vince ResNet18**: con il loop arriva a purity ~0,60–0,62 a ogni scala, quasi il doppio di VideoMAE, che anche nel suo run migliore si ferma a ~0,33–0,35. Ma i due backbone raccontano due comportamenti diversi del metodo. Su ResNet, le cui feature ImageNet partono già organizzate, il loop *raffina*: la purity guadagna poco perché è già vicina al suo tetto, mentre la coerenza interna dei cluster migliora sempre (ARI da +2 a +3,6 punti a ogni scala). Su VideoMAE, le cui feature partono senza struttura, il loop *costruisce*: i guadagni relativi sono i più grandi dell'intero progetto quando i dati bastano, ed è l'unico caso in cui il metodo genera separabilità che prima non c'era; ma la partenza è così arretrata che il distacco resta enorme. Il divario si riduce, non si colma: alle scale di questo progetto, le pseudo-label non sostituiscono la supervisione, e un backbone supervisionato resta nettamente preferibile a uno self-supervised adattato con il clustering iterativo.
 
-Nota qualitativa dalle assegnazioni: le classi con una firma visiva di scena forte (*scuba diving*, dominata dal blu subacqueo) formano cluster puri già in baseline; azioni diverse in ambienti simili (*pull ups* e *squat*, entrambe in palestra) restano le più confuse, coerentemente con backbone che vedono più la scena che il movimento (il mean pooling temporale scarta la dinamica).
+![t-SNE prima e dopo il loop](../figures/tsne_resnet_before_after.png)
+
+*Come leggere il grafico: gli stessi 398 video visti dal t-SNE prima e dopo 10 iterazioni di fine-tuning gentile su ResNet. Le isole si compattano e si separano: è il "raffinamento" (ARI +2,1) visto da dentro lo spazio delle feature.*
+
+Nota qualitativa, che il grafico rende visibile: le classi con una firma visiva di scena forte (*scuba diving*, dominata dal blu subacqueo) formano cluster puri già in baseline; azioni diverse in ambienti simili (*pull ups* e *squat*, entrambe in palestra) restano le più confuse, e nel pannello "dopo" si vedono ancora mescolate in basso al centro: i backbone vedono più la scena che il movimento, e il mean pooling temporale scarta proprio la dinamica che le distinguerebbe.
 
 ## 6. Conclusioni e limiti
 
