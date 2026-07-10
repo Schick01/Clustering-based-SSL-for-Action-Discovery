@@ -3,6 +3,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 from collections import Counter
 
+from src.evaluation.metrics import ari_score, nmi_score, purity_score
+
 def clustering(path_to_features, path_to_labels):
 
     print("1. Loading data...")
@@ -45,6 +47,12 @@ def clustering(path_to_features, path_to_labels):
 
     accuracy = (correct_samples / total_samples) * 100
     print(f"Clustering Accuracy: {accuracy:.2f}%")
+
+    # Terna completa di metriche di valutazione, calcolate con le stesse
+    # funzioni usate dal clustering iterativo per garantire confrontabilità.
+    print(f"Purity: {purity_score(true_labels, cluster_labels):.4f}")
+    print(f"NMI (Normalized Mutual Information): {nmi_score(true_labels, cluster_labels):.4f}")
+    print(f"ARI (Adjusted Rand Index): {ari_score(true_labels, cluster_labels):.4f}")
 
 
 #def iterative_clustering(path_to_features, path_to_labels, num_iterations=5):

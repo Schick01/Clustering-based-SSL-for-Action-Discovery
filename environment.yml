@@ -6,19 +6,24 @@ channels:
 dependencies:
   - python=3.10
   - pip
-  - pytorch
-  - torchvision
+  # Versioni pinnate: i numeri del report sono riproducibili a parità di
+  # versioni (il default n_init di scikit-learn e l'aritmetica di torch
+  # influenzano i risultati del K-Means a parità di seed)
+  - pytorch=2.5.1
+  - torchvision=0.20.1
   - torchaudio
   - pytorch-cuda=11.8 # Modificare a seconda del target
   # Add other conda packages here
   - pip:
-      - numpy
-      - pandas
+      - numpy==2.2.6
       - matplotlib
-      - scikit-learn
+      - scikit-learn==1.7.2
       - pyyaml
-      - tensorboard
+      - requests
       - tqdm
       - opencv-python
-      - transformers
+      # Pin alla serie 4.x: dalla 5.x il caricamento di VideoMAE scarta i
+      # bias di attention pre-addestrati (q_bias/v_bias) del checkpoint,
+      # reinizializzandoli a zero (verifica: tests/verify_videomae_weights.py)
+      - transformers==4.57.1
       # Add other pip-only packages here

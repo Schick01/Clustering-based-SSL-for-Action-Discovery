@@ -1,0 +1,21 @@
+# Calibrazione del regime di training sul dataset esteso (~5800 video):
+# lr del backbone ridotto di ~3x, il fattore di crescita del dataset
+# rispetto al run precedente (~1850). Stessa logica della config
+# gemella VideoMAE: la gentilezza va misurata in update, non in epoche.
+run_name: iterative_resnet_lr3e6_n5802
+backbone: resnet
+data_path: data
+
+num_clusters: 10
+max_iterations: 10
+stability_threshold: 0.95
+min_cluster_size: 5
+
+epochs: 1
+batch_size: 4
+lr_backbone: 3.0e-6       # regime gentile a scala 1850: 1.0e-5
+lr_head: 1.0e-3
+weight_decay: 1.0e-4
+
+seed: 42
+device: cpu

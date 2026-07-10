@@ -1,0 +1,18 @@
+# Clustering iterativo su ResNet18 (fine-tuning del solo layer4)
+run_name: iterative_resnet
+backbone: resnet
+data_path: data
+
+num_clusters: 10          # K fissato al numero di classi del sottoinsieme (assunzione dichiarata)
+max_iterations: 10
+stability_threshold: 0.95 # NMI tra assegnazioni consecutive oltre cui fermarsi
+min_cluster_size: 5       # sotto questa dimensione un cluster genera un warning
+
+epochs: 2
+batch_size: 4
+lr_backbone: 1.0e-4
+lr_head: 1.0e-3
+weight_decay: 1.0e-4
+
+seed: 42
+device: cpu

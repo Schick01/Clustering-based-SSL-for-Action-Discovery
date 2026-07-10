@@ -1,0 +1,23 @@
+# Ablation over-clustering su VideoMAE (dataset esteso): K=50 invece di
+# 10, alla maniera di DeepCluster. Cluster più fini catturano frammenti
+# semantici più facili da separare per feature deboli, e il pseudo-task
+# a 50 vie dà un gradiente più informativo. Nel confronto con K=10 fanno
+# fede NMI e ARI: la purity cresce meccanicamente con K.
+run_name: iterative_videomae_k50_n1865
+backbone: videomae
+data_path: data
+num_blocks: 2
+
+num_clusters: 50          # ablation: 5x le classi reali (K=10 nella config standard)
+max_iterations: 15
+stability_threshold: 0.95
+min_cluster_size: 5
+
+epochs: 1
+batch_size: 4
+lr_backbone: 1.0e-5
+lr_head: 1.0e-3
+weight_decay: 1.0e-4
+
+seed: 42
+device: cpu
