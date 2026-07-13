@@ -256,7 +256,11 @@ def run_frozen_clustering(config: dict) -> list[dict]:
     features_tensor = torch.from_numpy(features).float()
 
     projection = ProjectionHead(
-        feature_dim=features.shape[1], projection_dim=config["projection_dim"]
+        feature_dim=features.shape[1],
+        projection_dim=config["projection_dim"],
+        # Variante residua a identita' iniziale, solo diagnostica:
+        # il metodo dichiarato e' la proiezione pura (default False)
+        residual=config.get("residual", False),
     )
 
     def record_iteration(
@@ -297,7 +301,7 @@ def run_frozen_clustering(config: dict) -> list[dict]:
         print(f"\nIterazione {iteration}")
 
         pseudo_labels = assignments
-        head = build_linear_head(config["projection_dim"], num_clusters)
+        head = build_linear_head(projection.output_dim, num_clusters)
 
         epoch_losses = train_projection_on_pseudo_labels(
             projection=projection,
