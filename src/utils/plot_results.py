@@ -446,6 +446,111 @@ def fig_stability_videomae() -> None:
     save(fig, "stability_videomae.png")
 
 
+def fig_method_comparison_curves() -> None:
+    """F10 — metodo A vs metodo B: guadagno per iterazione, due casi chiave.
+
+    Le curve mostrano il Δ purity rispetto all'iterazione 0 del proprio
+    run: la linea dello zero È la baseline, e l'uso dei Δ interni rende
+    il confronto indipendente dal device di esecuzione (i run A a 1.865
+    girano su GPU, i run B su CPU).
+    """
+    panels = [
+        ("ResNet18, 398 video", "iterative_resnet_gentle", "frozen_resnet_n398"),
+        ("VideoMAE, 1.865 video", "iterative_videomae_n1865", "frozen_videomae_n1865_cal"),
+    ]
+
+    fig = new_figure(11, 4.4)
+    fig.suptitle(
+        "Metodi a confronto: il guadagno c'è solo se il backbone impara",
+        fontsize=15, color=INK, fontweight="bold",
+    )
+
+    legend_handles = None
+    for p_index, (title, run_a, run_b) in enumerate(panels):
+        ax = fig.add_subplot(1, 2, p_index + 1)
+        style_axes(ax)
+        for run, label, color in (
+            (run_a, "A: fine-tuning del backbone", BLUE),
+            (run_b, "B: backbone congelato + MLP", RED),
+        ):
+            hist = load_history(run)
+            base = hist[0]["purity"]
+            ax.plot([e["iteration"] for e in hist],
+                    [(e["purity"] - base) * 100 for e in hist],
+                    marker="o", markersize=5.5, linewidth=2, color=color, label=label)
+        ax.axhline(0, color=AXIS, linewidth=1.2)
+        # Etichetta a destra, dove la linea dello zero resta libera
+        ax.text(0.98, 0.35, "baseline (iterazione 0)", fontsize=9.5, color=MUTED,
+                ha="right", transform=ax.get_yaxis_transform())
+        integer_x_axis(ax)
+        ax.set_xlabel("iterazione", fontsize=11.5, color=INK2)
+        ax.set_ylabel("Δ purity vs baseline (punti)", fontsize=11.5, color=INK2)
+        ax.set_title(title, fontsize=13, color=INK, pad=14)
+        if legend_handles is None:
+            legend_handles = ax.get_legend_handles_labels()
+
+    # Legenda unica sotto la figura, comune ai due pannelli
+    fig.legend(*legend_handles, frameon=False, fontsize=10.5, loc="lower center",
+               ncol=2, bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=(0, 0.06, 1, 0.91))
+    save(fig, "method_comparison_curves.png")
+
+
+def fig_method_deltas() -> None:
+    """F11 — metodo A vs metodo B: guadagno finale di purity a tutte le scale."""
+    backbone_runs = {
+        "ResNet18": (
+            ["iterative_resnet_gentle", "iterative_resnet_gentle_n1865", "iterative_resnet_lr3e6_n5802"],
+            ["frozen_resnet_n398", "frozen_resnet_n1865_cal", "frozen_resnet_cal"],
+        ),
+        "VideoMAE": (
+            ["iterative_videomae", "iterative_videomae_n1865", "iterative_videomae_lr3e6_n5802"],
+            ["frozen_videomae_n398", "frozen_videomae_n1865_cal", "frozen_videomae_cal"],
+        ),
+    }
+
+    fig = new_figure(11.5, 4.4)
+    fig.suptitle(
+        "Guadagno finale di purity per scala: fine-tuning (A) vs feature congelate (B)",
+        fontsize=15, color=INK, fontweight="bold",
+    )
+
+    legend_handles = None
+    for b_index, (backbone, (runs_a, runs_b)) in enumerate(backbone_runs.items()):
+        ax = fig.add_subplot(1, 2, b_index + 1)
+        style_axes(ax)
+
+        width = 0.32
+        all_values = []
+        for m_index, (runs, label, color) in enumerate(
+            ((runs_a, "A: fine-tuning del backbone", BLUE),
+             (runs_b, "B: backbone congelato + MLP", RED))
+        ):
+            xs = [i + (m_index - 0.5) * width for i in range(len(SCALE_LABELS))]
+            values = [delta_points(load_history(run), "purity") for run in runs]
+            all_values.extend(values)
+            bars = ax.bar(xs, values, width=width - 0.04, color=color, label=label)
+            for bar, value in zip(bars, values):
+                ax.text(bar.get_x() + bar.get_width() / 2,
+                        value + (0.25 if value >= 0 else -0.75),
+                        f"{value:+.1f}", ha="center", fontsize=9.5, color=INK)
+
+        # Margini verticali ampi: le etichette dei valori devono respirare
+        ax.set_ylim(min(0.0, min(all_values)) - 1.6, max(all_values) + 1.6)
+        ax.axhline(0, color=AXIS, linewidth=1)
+        ax.set_xticks(range(len(SCALE_LABELS)))
+        ax.set_xticklabels([f"{s} video" for s in SCALE_LABELS], fontsize=11, color=INK)
+        ax.set_ylabel("Δ purity finale (punti percentuali)", fontsize=11.5, color=INK2)
+        ax.set_title(backbone, fontsize=13, color=INK)
+        if legend_handles is None:
+            legend_handles = ax.get_legend_handles_labels()
+
+    fig.legend(*legend_handles, frameon=False, fontsize=10.5, loc="lower center",
+               ncol=2, bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=(0, 0.06, 1, 0.9))
+    save(fig, "method_comparison_deltas.png")
+
+
 def main() -> None:
     """Genera tutte le figure del report."""
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -460,6 +565,8 @@ def main() -> None:
     fig_ablations()
     fig_baseline_l2_bars()
     fig_stability_videomae()
+    fig_method_comparison_curves()
+    fig_method_deltas()
 
 
 if __name__ == "__main__":
