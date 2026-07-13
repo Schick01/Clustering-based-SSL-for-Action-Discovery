@@ -1,0 +1,25 @@
+# Metodo alternativo a backbone congelato su ResNet18 (dataset pieno):
+# le feature vengono estratte una sola volta e il loop allena solo un
+# MLP di proiezione sulle pseudo-label. Confronto di controllo con il
+# metodo completo: misura quanto guadagno e' ottenibile senza toccare
+# le rappresentazioni del backbone.
+run_name: frozen_resnet
+backbone: resnet
+data_path: data
+features_path: experiments/features/resnet_n5802.pt   # cache un-tantum delle feature congelate
+
+num_clusters: 10          # K fissato al numero di classi del sottoinsieme (assunzione dichiarata)
+projection_dim: 256       # dimensione dello spazio di proiezione su cui si clusterizza
+max_iterations: 15
+stability_threshold: 0.95 # NMI tra assegnazioni consecutive oltre cui fermarsi
+min_cluster_size: 5       # sotto questa dimensione un cluster genera un warning
+
+epochs: 1
+extract_batch_size: 8     # batch di clip per l'estrazione un-tantum
+batch_size: 256           # batch di vettori per il training della proiezione
+lr_projection: 1.0e-4
+lr_head: 1.0e-3
+weight_decay: 1.0e-4
+
+seed: 42
+device: cpu

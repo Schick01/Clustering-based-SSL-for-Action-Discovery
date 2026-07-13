@@ -13,6 +13,8 @@ experiments/logs/**
 !experiments/logs/*/history.json
 !experiments/logs/*/config.yaml
 experiments/checkpoints/
+# Cache un-tantum delle feature congelate (metodo frozen): rigenerabile
+experiments/features/
 
 .ipynb_checkpoints/
 
