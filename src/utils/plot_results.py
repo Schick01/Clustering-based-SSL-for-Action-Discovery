@@ -162,6 +162,156 @@ def fig_loop_schema() -> None:
     save(fig, "iterative_loop_schema.png")
 
 
+TRAINED_FILL, FROZEN_FILL = "#e3eefb", "#e9e8e2"
+TRAINED_FILL_B = "#fbe5e4"
+
+
+def arch_box(ax: plt.Axes, x: float, y: float, w: float, h: float, text: str,
+             edge: str = MUTED, fill: str = "#ffffff", dashed: bool = False,
+             fontsize: float = 10.5) -> None:
+    """Blocco arrotondato per gli schemi di architettura."""
+    ax.add_patch(FancyBboxPatch(
+        (x, y), w, h, boxstyle="round,pad=0.08", linewidth=1.8,
+        edgecolor=edge, facecolor=fill, linestyle="--" if dashed else "-",
+    ))
+    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center",
+            fontsize=fontsize, color=INK)
+
+
+def arch_arrow(ax: plt.Axes, x1: float, y1: float, x2: float, y2: float,
+               dashed: bool = False) -> None:
+    """Freccia di flusso per gli schemi di architettura."""
+    ax.add_patch(FancyArrowPatch(
+        (x1, y1), (x2, y2), arrowstyle="-|>", mutation_scale=14,
+        linewidth=1.6, color=INK2, linestyle="--" if dashed else "-",
+    ))
+
+
+def arch_legend(fig: plt.Figure, trained_label: str, trained_edge: str,
+                trained_fill: str) -> None:
+    """Legenda congelato/allenato comune agli schemi di architettura."""
+    import matplotlib.patches as mpatches
+
+    handles = [
+        mpatches.Patch(facecolor=trained_fill, edgecolor=trained_edge,
+                       linewidth=1.8, label=trained_label),
+        mpatches.Patch(facecolor=FROZEN_FILL, edgecolor=MUTED,
+                       linewidth=1.8, label="congelato (mai aggiornato)"),
+    ]
+    fig.legend(handles=handles, frameon=False, fontsize=10.5,
+               loc="lower center", ncol=2, bbox_to_anchor=(0.5, 0.0))
+
+
+def fig_arch_finetuning() -> None:
+    """F10 — i due backbone con le parti aggiornate dal fine-tuning (metodo A)."""
+    fig = new_figure(12, 6)
+    ax = fig.add_subplot(111)
+    ax.set_xlim(0, 12)
+    ax.set_ylim(0, 6.2)
+    ax.axis("off")
+
+    def frozen(x, y, w, h, text, fontsize=10.5):
+        arch_box(ax, x, y, w, h, text, edge=MUTED, fill=FROZEN_FILL, fontsize=fontsize)
+
+    def trained(x, y, w, h, text, dashed=False, fontsize=10.5):
+        arch_box(ax, x, y, w, h, text, edge=BLUE, fill=TRAINED_FILL,
+                 dashed=dashed, fontsize=fontsize)
+
+    # --- Riga ResNet18: convoluzioni per frame, media sui 16 frame ---
+    ax.text(0.2, 5.75, "ResNet18  —  sbloccati layer4 + testa: 8,4M / 11,2M parametri",
+            fontsize=12.5, color=INK, fontweight="bold")
+    y, h = 4.35, 1.0
+    arch_box(ax, 0.2, y, 1.15, h, "video\n16 frame")
+    frozen(1.85, y, 1.05, h, "conv1\n+ pool")
+    frozen(3.4, y, 0.95, h, "layer1")
+    frozen(4.85, y, 0.95, h, "layer2")
+    frozen(6.3, y, 0.95, h, "layer3")
+    trained(7.75, y, 0.95, h, "layer4")
+    trained(9.9, y, 1.9, h, "testa lineare K=10\n(usa e getta)", dashed=True)
+    for x1, x2 in ((1.35, 1.85), (2.9, 3.4), (4.35, 4.85), (5.8, 6.3), (7.25, 7.75)):
+        arch_arrow(ax, x1, y + h / 2, x2, y + h / 2)
+    arch_arrow(ax, 8.7, y + h / 2, 9.9, y + h / 2)
+    ax.text(9.3, y + h + 0.12, "GAP + media sui frame\nembedding 512d",
+            ha="center", fontsize=9.5, color=INK2)
+
+    # --- Riga VideoMAE: tubelet 3D e 12 blocchi Transformer ---
+    ax.text(0.2, 2.55, "VideoMAE-base  —  sbloccati ultimi 2 blocchi + testa: 14,2M / 86M parametri",
+            fontsize=12.5, color=INK, fontweight="bold")
+    y = 1.15
+    arch_box(ax, 0.2, y, 1.15, h, "video\n16 frame")
+    frozen(1.85, y, 1.55, h, "patch embedding\n3D (2×16×16)")
+    block_w, gap, x0 = 0.38, 0.09, 3.95
+    for b in range(12):
+        x = x0 + b * (block_w + gap)
+        if b < 10:
+            frozen(x, y, block_w, h, str(b + 1), fontsize=9)
+        else:
+            trained(x, y, block_w, h, str(b + 1), fontsize=9)
+    blocks_end = x0 + 12 * (block_w + gap) - gap
+    ax.text(x0 + (blocks_end - x0) / 2, y - 0.42, "blocchi Transformer 1–12",
+            fontsize=9.5, color=INK2, ha="center")
+    trained(9.9, y, 1.9, h, "testa lineare K=10\n(usa e getta)", dashed=True)
+    arch_arrow(ax, 1.35, y + h / 2, 1.85, y + h / 2)
+    arch_arrow(ax, 3.4, y + h / 2, 3.95, y + h / 2)
+    arch_arrow(ax, blocks_end, y + h / 2, 9.9, y + h / 2)
+    ax.text(9.3, y + h + 0.12, "mean pooling sui token\nembedding 768d",
+            ha="center", fontsize=9.5, color=INK2)
+
+    ax.set_title(
+        "Fine-tuning selettivo — cosa viene aggiornato nei due backbone (metodo A)",
+        fontsize=15, color=INK, fontweight="bold", pad=12,
+    )
+    arch_legend(fig, "aggiornato dal fine-tuning", BLUE, TRAINED_FILL)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    save(fig, "arch_finetuning.png")
+
+
+def fig_arch_frozen_head() -> None:
+    """F11 — metodo B: backbone congelato e testa di proiezione allenata."""
+    fig = new_figure(11, 4.6)
+    ax = fig.add_subplot(111)
+    ax.set_xlim(0, 11)
+    ax.set_ylim(0, 4.6)
+    ax.axis("off")
+
+    # Backbone congelato e feature fisse
+    arch_box(ax, 0.25, 2.45, 2.3, 1.35, "backbone congelato\nResNet18 / VideoMAE",
+             edge=MUTED, fill=FROZEN_FILL)
+    arch_box(ax, 3.15, 2.45, 1.95, 1.35, "feature fisse\n512d / 768d\n(estratte una volta)")
+    arch_arrow(ax, 2.55, 3.12, 3.15, 3.12)
+
+    # ProjectionHead: unica parte che persiste e si allena tra le iterazioni
+    ax.add_patch(FancyBboxPatch(
+        (5.7, 0.95), 2.6, 3.2, boxstyle="round,pad=0.1", linewidth=2.0,
+        edgecolor=RED, facecolor="#ffffff",
+    ))
+    ax.text(7.0, 3.75, "ProjectionHead", ha="center", fontsize=11.5,
+            color=RED, fontweight="bold")
+    for y, label in ((2.85, "Linear (D → D)"), (2.05, "ReLU"), (1.25, "Linear (D → 256)")):
+        arch_box(ax, 6.05, y, 1.9, 0.55, label, edge=RED, fill=TRAINED_FILL_B, fontsize=10)
+    arch_arrow(ax, 7.0, 2.85, 7.0, 2.62)
+    arch_arrow(ax, 7.0, 2.05, 7.0, 1.82)
+    ax.text(7.0, 0.62, "allenata sulle pseudo-label, persiste tra le iterazioni\n"
+                       "≈ 0,4M / 0,8M parametri (20–30 volte meno del metodo A)",
+            ha="center", va="top", fontsize=9.5, color=INK2)
+    arch_arrow(ax, 5.1, 3.12, 5.7, 3.12)
+
+    # Uscite: clustering sulle proiezioni, testa usa-e-getta solo in training
+    arch_box(ax, 9.0, 2.45, 1.75, 1.35, "L2-norm +\nK-Means (K=10)", edge=AQUA)
+    arch_arrow(ax, 8.35, 3.12, 9.0, 3.12)
+    arch_box(ax, 9.0, 0.85, 1.75, 1.0, "testa lineare K=10\n(usa e getta)",
+             edge=RED, fill=TRAINED_FILL_B, dashed=True, fontsize=9.5)
+    arch_arrow(ax, 8.35, 1.35, 9.0, 1.35, dashed=True)
+
+    ax.set_title(
+        "Metodo B — backbone congelato: si allena solo la testa di proiezione",
+        fontsize=15, color=INK, fontweight="bold", pad=12,
+    )
+    arch_legend(fig, "allenato nel loop (metodo B)", RED, TRAINED_FILL_B)
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    save(fig, "arch_frozen_head.png")
+
+
 def mean_loss(entry: dict) -> float | None:
     """Loss media dell'iterazione (None per l'iterazione 0)."""
     losses = entry["epoch_losses"]
@@ -558,6 +708,8 @@ def main() -> None:
 
     fig_dataset_growth()
     fig_loop_schema()
+    fig_arch_finetuning()
+    fig_arch_frozen_head()
     fig_resnet_regimes()
     fig_videomae_scaling_curves()
     fig_scaling_deltas()
