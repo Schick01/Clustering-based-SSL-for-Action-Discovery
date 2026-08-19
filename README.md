@@ -67,6 +67,15 @@ Optional flags: `--device cuda` (default is the `device` set in the config) and 
 | `iterative_videomae_k50.yaml` | Ablation: over-clustering (K=50) |
 | `iterative_videomae_blocks4.yaml` | Ablation: more capacity (4 unlocked blocks) |
 
+**Frozen-backbone control experiment** (features extracted once, the loop trains only a small projection MLP on pseudo-labels; used to verify that the gains of iterative clustering require updating the backbone — they do, see section 5.7 of the report):
+
+```bash
+python -m src.training.run_iterative_frozen --config experiments/configs/frozen_resnet.yaml
+python -m src.training.run_iterative_frozen --config experiments/configs/frozen_videomae.yaml
+```
+
+The `frozen_*.yaml` configs cover both backbones at the three dataset scales (`_n398`, `_n1865`, full), with `_cal` variants using the dataset-scaled learning rate; historical dataset snapshots are rebuilt with `python -m src.datasets.materialize_subsets`.
+
 ### 3. Evaluation
 
 Evaluation is built into every run: purity, NMI and ARI are computed at each iteration (ground-truth labels are used only at this stage) and stored, together with cluster assignments and the config used, in `experiments/logs/<run-name>/history.json`. The baseline in `main.py` prints the same three metrics. All report figures are regenerated from the run histories with:
@@ -94,7 +103,7 @@ python -m tests.verify_videomae_weights   # VideoMAE pretrained attention biases
 python -m tests.verify_determinism        # two identical runs produce bit-identical histories, assignments and weights
 ```
 
-`verify_determinism` accepts `--backbone {resnet,videomae}` and `--device {cpu,cuda}` and should be re-run once on any new hardware before running experiments.
+`verify_determinism` accepts `--backbone {resnet,videomae}`, `--device {cpu,cuda}` and `--method {full,frozen}`, and should be re-run once on any new hardware before running experiments.
 
 ---
 

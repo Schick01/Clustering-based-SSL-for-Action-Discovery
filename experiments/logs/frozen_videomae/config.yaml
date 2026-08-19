@@ -1,0 +1,25 @@
+# Metodo alternativo a backbone congelato su VideoMAE (dataset pieno):
+# le feature vengono estratte una sola volta e il loop allena solo un
+# MLP di proiezione sulle pseudo-label. E' il test chiave del metodo:
+# verifica se VideoMAE puo' migliorare senza aggiornare il backbone
+# (l'ipotesi registrata e' di no: tetto informativo delle feature fisse).
+run_name: frozen_videomae
+backbone: videomae
+data_path: data
+features_path: experiments/features/videomae_n5802.pt # cache un-tantum delle feature congelate
+
+num_clusters: 10          # K fissato al numero di classi del sottoinsieme (assunzione dichiarata)
+projection_dim: 256       # dimensione dello spazio di proiezione su cui si clusterizza
+max_iterations: 15
+stability_threshold: 0.95 # NMI tra assegnazioni consecutive oltre cui fermarsi
+min_cluster_size: 5       # sotto questa dimensione un cluster genera un warning
+
+epochs: 1
+extract_batch_size: 8     # batch di clip per l'estrazione un-tantum
+batch_size: 32            # batch di vettori; regime calibrato con la loss-spia (13 update/iter a 398)
+lr_projection: 1.0e-3
+lr_head: 1.0e-3
+weight_decay: 1.0e-4
+
+seed: 42
+device: cpu

@@ -15,11 +15,17 @@ e va corretta prima di qualsiasi esperimento. Esce con codice diverso
 da zero in caso di differenze.
 
 Uso (dalla radice del repository):
-    python -m tests.verify_determinism [--backbone resnet|videomae] [--device cpu|cuda]
+    python -m tests.verify_determinism [--backbone resnet|videomae] [--device cpu|cuda] [--method full|frozen]
 
-Il determinismo va riverificato su ogni combinazione dispositivo/backbone
-usata per gli esperimenti: kernel CUDA e implementazioni di attention
-possono introdurre sorgenti di non-determinismo assenti su CPU.
+Con ``--method frozen`` viene verificato il metodo a backbone congelato
+(``run_iterative_frozen``): ogni mini-run estrae le proprie feature in
+un percorso separato, così la verifica copre anche il determinismo
+dell'estrazione, oltre a quello del loop sulla proiezione.
+
+Il determinismo va riverificato su ogni combinazione
+dispositivo/backbone/metodo usata per gli esperimenti: kernel CUDA e
+implementazioni di attention possono introdurre sorgenti di
+non-determinismo assenti su CPU.
 """
 
 import argparse
@@ -68,7 +74,14 @@ def build_mini_dataset(source_root: str, target_root: str) -> int:
     return num_copied
 
 
-def write_check_config(path: str, data_path: str, backbone: str, device: str) -> None:
+def write_check_config(
+    path: str,
+    data_path: str,
+    backbone: str,
+    device: str,
+    method: str = "full",
+    features_path: str | None = None,
+) -> None:
     """
     Scrive la configurazione del mini-run di verifica.
 
@@ -80,26 +93,41 @@ def write_check_config(path: str, data_path: str, backbone: str, device: str) ->
         data_path: cartella del mini-dataset.
         backbone: backbone da verificare ("resnet" o "videomae").
         device: dispositivo di calcolo ("cpu" o "cuda").
+        method: metodo da verificare ("full" o "frozen").
+        features_path: percorso della cache feature del run (solo per
+            "frozen"; distinto per run, così ogni run estrae le proprie
+            feature e la verifica copre anche l'estrazione).
     """
-    config_text = (
+    common = (
         "run_name: placeholder\n"
         f"backbone: {backbone}\n"
         f"data_path: {data_path}\n"
-        "num_blocks: 2\n"
         "num_clusters: 10\n"
         "max_iterations: 2\n"
         "stability_threshold: 1.1\n"
         "min_cluster_size: 1\n"
         "epochs: 1\n"
-        "batch_size: 4\n"
-        "lr_backbone: 1.0e-4\n"
         "lr_head: 1.0e-3\n"
         "weight_decay: 1.0e-4\n"
         "seed: 42\n"
         f"device: {device}\n"
     )
+    if method == "full":
+        specific = (
+            "num_blocks: 2\n"
+            "batch_size: 4\n"
+            "lr_backbone: 1.0e-4\n"
+        )
+    else:
+        specific = (
+            f"features_path: {features_path}\n"
+            "projection_dim: 256\n"
+            "extract_batch_size: 4\n"
+            "batch_size: 8\n"
+            "lr_projection: 1.0e-4\n"
+        )
     with open(path, "w", encoding="utf-8") as f:
-        f.write(config_text)
+        f.write(common + specific)
 
 
 def compare_runs() -> bool:
@@ -170,24 +198,43 @@ def main() -> int:
         default="cpu",
         help="dispositivo di calcolo (cpu o cuda)",
     )
+    parser.add_argument(
+        "--method",
+        default="full",
+        choices=["full", "frozen"],
+        help="metodo da verificare: loop completo o backbone congelato",
+    )
     args = parser.parse_args()
+
+    entry_point = (
+        "src.training.run_iterative" if args.method == "full" else "src.training.run_iterative_frozen"
+    )
 
     temp_dir = tempfile.mkdtemp(prefix="determinism_check_")
     mini_data = os.path.join(temp_dir, "mini_data")
-    config_path = os.path.join(temp_dir, "check_config.yaml")
 
     try:
         num_videos = build_mini_dataset("data", mini_data)
-        print(f"Mini-dataset: {num_videos} video | backbone: {args.backbone} | device: {args.device}")
-        write_check_config(config_path, mini_data, args.backbone, args.device)
+        print(
+            f"Mini-dataset: {num_videos} video | backbone: {args.backbone} | "
+            f"device: {args.device} | metodo: {args.method}"
+        )
 
         for run_name in RUN_NAMES:
+            # Configurazione distinta per run: nel metodo frozen ogni run
+            # deve estrarre le proprie feature (features_path separati)
+            config_path = os.path.join(temp_dir, f"check_config_{run_name}.yaml")
+            features_path = os.path.join(temp_dir, f"features_{run_name}.pt").replace("\\", "/")
+            write_check_config(
+                config_path, mini_data, args.backbone, args.device, args.method, features_path
+            )
+
             print(f"Esecuzione mini-run '{run_name}'...")
             result = subprocess.run(
                 [
                     sys.executable,
                     "-m",
-                    "src.training.run_iterative",
+                    entry_point,
                     "--config",
                     config_path,
                     "--run-name",

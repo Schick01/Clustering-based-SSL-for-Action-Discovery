@@ -1,0 +1,23 @@
+# Metodo a backbone congelato su ResNet18, sottoinsieme originale
+# (398 video, materializzato da src.datasets.materialize_subsets).
+# Controllo alla scala del run gentile del metodo completo.
+run_name: probe_frozen_e10
+backbone: resnet
+data_path: data/subsets/n398
+features_path: experiments/features/resnet_n398.pt   # cache un-tantum delle feature congelate
+
+num_clusters: 10          # K fissato al numero di classi del sottoinsieme (assunzione dichiarata)
+projection_dim: 256       # dimensione dello spazio di proiezione su cui si clusterizza
+max_iterations: 15
+stability_threshold: 0.95 # NMI tra assegnazioni consecutive oltre cui fermarsi
+min_cluster_size: 5       # sotto questa dimensione un cluster genera un warning
+
+epochs: 10
+extract_batch_size: 8     # batch di clip per l'estrazione un-tantum
+batch_size: 32           # batch di vettori per il training della proiezione
+lr_projection: 1.0e-3
+lr_head: 1.0e-3
+weight_decay: 1.0e-4
+
+seed: 42
+device: cpu

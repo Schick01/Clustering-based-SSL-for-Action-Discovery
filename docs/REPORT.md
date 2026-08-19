@@ -17,6 +17,7 @@ Oltre all'implementazione completa della pipeline richiesta dalla traccia, il pr
 1. **Uno studio di scaling a tre punti** (398 → 1.865 → 5.802 video), reso possibile dall'estensione autonoma del dataset dagli archivi ufficiali di Kinetics-400: è l'esperimento che ha trasformato un risultato negativo in una comprensione del comportamento del metodo.
 2. **Fine-tuning dinamico adattato al dataset**: il regime di fine-tuning va scalato con la dimensione del dataset (in numero di update, non di epoche), dimostrato con controfattuali su entrambi i backbone.
 3. **Utilizzo della L2-normalization**: la sola L2-normalization delle feature prima del K-Means vale **+8,5 punti di purity** sulla baseline ResNet.
+4. **Un esperimento di controllo sul metodo**: il confronto con un'alternativa a backbone congelato (paragrafo 5.7) mostra che il guadagno del loop richiede l'aggiornamento della rappresentazione, e non è ottenibile riorganizzando feature fisse.
 
 ## 3. Dati utilizzati
 
@@ -161,9 +162,21 @@ Mettendo insieme gli esperimenti, il quadro finale è questo. **In assoluto vinc
 
 Nota qualitativa, che il grafico rende visibile: le classi con una firma visiva di scena forte (*scuba diving*, dominata dal blu subacqueo) formano cluster puri già in baseline; azioni diverse in ambienti simili (*pull ups* e *squat*, entrambe in palestra) restano le più confuse, e nel pannello "dopo" si vedono ancora mescolate in basso al centro: i backbone vedono più la scena che il movimento, e il mean pooling temporale scarta proprio la dinamica che le distinguerebbe.
 
+### 5.7 Controprova finale: il metodo a backbone congelato
+
+In fase di progettazione avevamo scartato l'alternativa economica al fine-tuning: tenere il backbone congelato, estrarre le feature una sola volta e far girare il loop su una piccola testa MLP di proiezione, addestrata sulle pseudo-label e clusterizzando la sua uscita. L'abbiamo implementata a esperimenti conclusi come **controprova**: se il guadagno del loop venisse dal semplice ripartizionamento dello spazio, questo metodo dovrebbe catturarne una parte a costo quasi nullo (una volta estratte le feature, ogni iterazione dura secondi anche su CPU); se invece il guadagno richiede che informazione nuova entri nella rappresentazione, il metodo deve fallire. Il protocollo è identico a quello principale (pseudo-label, cross-entropy pesata, stop su stabilità, iterazione 0 coincidente con la baseline per costruzione) e il regime di training è stato calibrato con la loss e scalato con gli update, applicando la stessa lezione del paragrafo 5.4.
+
+![Confronto tra fine-tuning e backbone congelato](../figures/method_comparison_curves.png)
+
+*Come leggere il grafico: guadagno di purity rispetto alla propria iterazione 0 (la linea dello zero è la baseline), nei due casi in cui il fine-tuning guadagnava di più. Il metodo a backbone congelato (rosso) non solo non migliora: scende sotto la baseline e ci resta.*
+
+L'esito è netto: **il metodo a backbone congelato non migliora mai i risultati, e nella maggior parte dei casi li peggiora**. Dove il fine-tuning guadagnava di più (ResNet a 398 video: +3,0 punti di purity; VideoMAE a 1.865: +3,3), la proiezione su feature congelate chiude rispettivamente a −6,3 e −0,3; il quadro è lo stesso a tutte le scale e su entrambi i backbone (run nel registro degli esperimenti). Le varianti provate non cambiano l'esito, ma lo spiegano: con un training più intenso il MLP memorizza le pseudo-label e il loop converge subito confermando sé stesso, con un training più cauto la proiezione vaga senza costruire; anche partendo da una proiezione inizializzata all'identità (che preserva la geometria della baseline) le metriche si erodono iterazione dopo iterazione.
+
+Il confronto chiude il cerchio sul metodo: **il guadagno del clustering iterativo non viene dal ripartizionare meglio uno spazio fisso, ma dal migliorare lo spazio stesso, e per questo il fine-tuning del backbone non è un costo evitabile ma l'ingrediente essenziale**.
+
 ## 6. Conclusioni e limiti
 
-A questo punto la domanda centrale ha una risposta netta: **il clustering iterativo funziona**, converge autonomamente e migliora le proprie partizioni su entrambi i backbone, **ma il suo effetto dipende da tre condizioni misurate**: la maturità delle feature di partenza, la scala dei dati e la calibrazione del regime di training.
+A questo punto la domanda centrale ha una risposta netta: **il clustering iterativo funziona**, converge autonomamente e migliora le proprie partizioni su entrambi i backbone, **ma il suo effetto dipende da tre condizioni misurate**: la maturità delle feature di partenza, la scala dei dati e la calibrazione del regime di training. La controprova del paragrafo 5.7 aggiunge la condizione più fondamentale: il guadagno esiste solo se il loop può **aggiornare la rappresentazione**, e la variante a backbone congelato, che non può farlo, non migliora mai i risultati.
 
 **Perché ResNet18 batte VideoMAE.** Il risultato che più contraddice le aspettative iniziali merita una spiegazione dedicata. I numeri eccellenti di VideoMAE in letteratura (~80% di accuracy su Kinetics-400) si ottengono *dopo* un fine-tuning supervisionato completo: con un semplice linear probing sulle feature congelate, la stessa letteratura riporta un crollo attorno al 38%. La causa è l'obiettivo del pre-training: ricostruire patch mascherate produce feature ricche di informazione per *ricostruire i pixel*, ma non organizzate per *separare le classi*; quell'organizzazione gliela dà di norma la supervisione. ResNet18, al contrario, è stata addestrata proprio a separare 1.000 classi di oggetti, e le nostre 10 azioni sono fortemente correlate a oggetti e scene (chitarra, batteria, arco, fondale marino): per il clustering è un vantaggio strutturale. Il divario osservato non è quindi un incidente della nostra implementazione, ma la conferma sperimentale di una proprietà nota della famiglia MAE: **conta l'obiettivo del pre-training, non la modernità del modello**.
 
