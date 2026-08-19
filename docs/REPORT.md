@@ -58,6 +58,10 @@ Il metodo segue lo schema DeepCluster: le assegnazioni del K-Means corrente dive
 - **Anti-collasso**: cross-entropy **pesata con l'inverso della dimensione dei cluster** (senza, i cluster grandi dominano il gradiente e degenerano); le dimensioni dei cluster sono monitorate a ogni iterazione.
 - **Criterio di stop interno**: il loop si ferma quando la NMI **tra le assegnazioni di due iterazioni consecutive** supera 0,95, con un tetto massimo di iterazioni.
 
+![Cosa viene aggiornato nei due backbone](../figures/arch_finetuning.png)
+
+*Come leggere lo schema: in grigio le parti congelate, in blu quelle aggiornate dal fine-tuning. Su ResNet18 si muove il solo layer4 (8,4 milioni di parametri su 11,2), su VideoMAE gli ultimi 2 blocchi encoder su 12 (14,2 milioni su 86). La testa lineare è tratteggiata perché viene ricreata a ogni iterazione: gli identificativi dei cluster permutano e conservarla non avrebbe senso.*
+
 ### 4.3 Infrastruttura di calcolo
 
 Il progetto è iniziato sul portatile di uno di noi (solo CPU): lì sono nate la pipeline, le verifiche e i primi run ResNet (~2 ore l'uno). Per VideoMAE un singolo run completo avrebbe richiesto ~15 ore stimate: siamo quindi passati al **cluster GPU del DMI**, adattando la pipeline ai suoi vincoli reali: nodi senza accesso a Internet e un job per utente alla volta.
@@ -165,6 +169,10 @@ Nota qualitativa, che il grafico rende visibile: le classi con una firma visiva 
 ### 5.7 Controprova finale: il metodo a backbone congelato
 
 In fase di progettazione avevamo scartato l'alternativa economica al fine-tuning: tenere il backbone congelato, estrarre le feature una sola volta e far girare il loop su una piccola testa MLP di proiezione, addestrata sulle pseudo-label e clusterizzando la sua uscita. L'abbiamo implementata a esperimenti conclusi come **controprova**: se il guadagno del loop venisse dal semplice ripartizionamento dello spazio, questo metodo dovrebbe catturarne una parte a costo quasi nullo (una volta estratte le feature, ogni iterazione dura secondi anche su CPU); se invece il guadagno richiede che informazione nuova entri nella rappresentazione, il metodo deve fallire. Il protocollo è identico a quello principale (pseudo-label, cross-entropy pesata, stop su stabilità, iterazione 0 coincidente con la baseline per costruzione) e il regime di training è stato calibrato con la loss e scalato con gli update, applicando la stessa lezione del paragrafo 5.4.
+
+![Architettura del metodo a backbone congelato](../figures/arch_frozen_head.png)
+
+*Come leggere lo schema: il backbone (grigio) non viene mai aggiornato e le sue feature sono estratte una sola volta; il loop allena unicamente la testa di proiezione (rosso), un MLP con un solo strato nascosto che persiste tra le iterazioni e ne eredita quindi il ruolo. Il clustering avviene sulle proiezioni L2-normalizzate, mentre il classificatore lineare resta usa e getta come nel metodo principale.*
 
 ![Confronto tra fine-tuning e backbone congelato](../figures/method_comparison_curves.png)
 
