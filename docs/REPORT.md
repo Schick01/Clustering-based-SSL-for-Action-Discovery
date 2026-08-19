@@ -100,13 +100,13 @@ Due fatti. Primo: la sola **L2-normalization** vale **+8,5 punti di purity** su 
 
 ### 5.2 ResNet iterativo: due approcci diversi
 
-![ResNet 398: regime aggressivo vs gentile](../figures/resnet398_regimes.png)
-
-*Come leggere il grafico: ogni punto è un'iterazione del ciclo (clustering → addestramento → re-clustering), uguale per entrambe le linee; le epoche misurano quanto addestramento avviene dentro ciascuna iterazione. Le due linee partono dallo stesso valore (stessa baseline) e differiscono solo per l'intensità dell'addestramento. Il run rosso si allena il doppio a ogni iterazione, eppure peggiora: la loss molto bassa (pannello destro) rivela che sta memorizzando le pseudo-label, errori compresi.*
-
 A ogni iterazione la rete viene addestrata sui cluster correnti come se fossero etichette vere, ma i cluster correnti sono in parte sbagliati: quanto intensamente addestrarla è la scelta decisiva. Nel primo run (in rosso, 2 epoche per iterazione, learning rate 10⁻⁴) l'addestramento era troppo intenso: la rete imparava le pseudo-label quasi alla perfezione, **errori compresi**, come dimostrava la loss che crollava sotto 0,5. Memorizzare i cluster attuali non crea struttura nuova: al re-clustering successivo la partizione cambiava ogni volta senza migliorare, e la purity finale è scesa sotto la baseline.
 
 Con un addestramento dieci volte più leggero (in blu, 1 epoca, learning rate 10⁻⁵), lo stesso identico loop ha cambiato comportamento: a ogni iterazione la rete assorbe solo i pattern condivisi da molti video (statisticamente quelli corretti) e non fa in tempo a memorizzare i singoli errori. Risultato: purity da 0.5905 a **0.6206** (+3,0 punti), ARI +2,1, e cluster sempre più stabili di iterazione in iterazione. Da questo esperimento abbiamo ricavato due strumenti usati in tutto il resto del progetto: **la loss di training come spia** (troppo bassa significa memorizzazione, non apprendimento) e la regola pratica *tante iterazioni brevi, meglio di poche lunghe*.
+
+![ResNet 398: regime aggressivo vs gentile](../figures/resnet398_regimes.png)
+
+*Come leggere il grafico: ogni punto è un'iterazione del ciclo (clustering → addestramento → re-clustering), uguale per entrambe le linee; le epoche misurano quanto addestramento avviene dentro ciascuna iterazione. Le due linee partono dallo stesso valore (stessa baseline) e differiscono solo per l'intensità dell'addestramento. Il run rosso si allena il doppio a ogni iterazione, eppure peggiora: la loss molto bassa (pannello destro) rivela che sta memorizzando le pseudo-label, errori compresi.*
 
 ### 5.3 VideoMAE a 398 video: un risultato negativo
 
@@ -152,9 +152,11 @@ Con l'addestramento sistemato, il verdetto è pulito: **il beneficio del loop su
 
 ### 5.5 Approfondimento sul dataset intermedio
 
+Sulla scala intermedia abbiamo testato le due leve che avrebbero potuto spingere VideoMAE più su. **Over-clustering (K=50)**, ingrediente canonico di DeepCluster: da noi frammenta senza guadagnare: con ~37 video attesi per cluster manca la popolosità che lo rende utile a grande scala. **Più capacità (4 blocchi invece di 2)**: converge prima ma a una partizione peggiore, con la loss più bassa.
+
 ![Ablation su VideoMAE](../figures/ablations_videomae.png)
 
-Sulla scala intermedia abbiamo testato le due leve che avrebbero potuto spingere VideoMAE più su. **Over-clustering (K=50)**, ingrediente canonico di DeepCluster: da noi frammenta senza guadagnare: con ~37 video attesi per cluster manca la popolosità che lo rende utile a grande scala. **Più capacità (4 blocchi invece di 2)**: converge prima ma a una partizione peggiore, con la loss più bassa.
+*Come leggere il grafico: ogni coppia di barre è il guadagno netto (finale − iterazione 0) di una configurazione sulla scala intermedia. La configurazione standard resta la più alta su entrambe le metriche; l'over-clustering perde soprattutto in ARI, la metrica che penalizza i cluster spezzati.*
 
 ### 5.6 Lettura d'insieme
 
