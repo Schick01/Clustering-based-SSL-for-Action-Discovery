@@ -174,11 +174,11 @@ In fase di progettazione avevamo scartato l'alternativa economica al fine-tuning
 
 *Come leggere lo schema: il backbone (grigio) non viene mai aggiornato e le sue feature sono estratte una sola volta; il loop allena unicamente la testa di proiezione (rosso), un MLP con un solo strato nascosto che persiste tra le iterazioni e ne eredita quindi il ruolo. Il clustering avviene sulle proiezioni L2-normalizzate, mentre il classificatore lineare resta usa e getta come nel metodo principale.*
 
+L'esito è netto: **il metodo a backbone congelato non migliora mai i risultati, e nella maggior parte dei casi li peggiora**. Dove il fine-tuning guadagnava di più (ResNet a 398 video: +3,0 punti di purity; VideoMAE a 1.865: +3,3), la proiezione su feature congelate chiude rispettivamente a −6,3 e −0,3; il quadro è lo stesso a tutte le scale e su entrambi i backbone (run nel registro degli esperimenti). Le varianti provate non cambiano l'esito, ma lo spiegano: con un training più intenso il MLP memorizza le pseudo-label e il loop converge subito confermando sé stesso, con un training più cauto la proiezione vaga senza costruire; anche partendo da una proiezione inizializzata all'identità (che preserva la geometria della baseline) le metriche si erodono iterazione dopo iterazione.
+
 ![Confronto tra fine-tuning e backbone congelato](../figures/method_comparison_curves.png)
 
 *Come leggere il grafico: guadagno di purity rispetto alla propria iterazione 0 (la linea dello zero è la baseline), nei due casi in cui il fine-tuning guadagnava di più. Il metodo a backbone congelato (rosso) non solo non migliora: scende sotto la baseline e ci resta.*
-
-L'esito è netto: **il metodo a backbone congelato non migliora mai i risultati, e nella maggior parte dei casi li peggiora**. Dove il fine-tuning guadagnava di più (ResNet a 398 video: +3,0 punti di purity; VideoMAE a 1.865: +3,3), la proiezione su feature congelate chiude rispettivamente a −6,3 e −0,3; il quadro è lo stesso a tutte le scale e su entrambi i backbone (run nel registro degli esperimenti). Le varianti provate non cambiano l'esito, ma lo spiegano: con un training più intenso il MLP memorizza le pseudo-label e il loop converge subito confermando sé stesso, con un training più cauto la proiezione vaga senza costruire; anche partendo da una proiezione inizializzata all'identità (che preserva la geometria della baseline) le metriche si erodono iterazione dopo iterazione.
 
 Il confronto chiude il cerchio sul metodo: **il guadagno del clustering iterativo non viene dal ripartizionare meglio uno spazio fisso, ma dal migliorare lo spazio stesso, e per questo il fine-tuning del backbone non è un costo evitabile ma l'ingrediente essenziale**.
 
